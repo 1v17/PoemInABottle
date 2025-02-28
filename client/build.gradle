@@ -2,8 +2,8 @@ plugins {
     id 'java'
 }
 
-group = 'cs6650-hw2b'
-version = '1.0-SNAPSHOT'
+group = 'cs6650'
+version = '1.0'
 
 repositories {
     mavenCentral()
