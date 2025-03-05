@@ -42,7 +42,7 @@ The test data is:
 
 ## To-Dos
 By 2025/3/10:
-- [ ] Prepare testing data (lines, poems, etc.) - JH
+- [x] Prepare testing data (lines, poems, etc.) - JH
 - [ ] Client
 - [ ] API Services - JH
     - [x] POST /sentence
@@ -50,3 +50,13 @@ By 2025/3/10:
     - [x] GET /poem
     - [x] GET /poem/:theme
     - [ ] AWS Lambda for serverless functions
+- [ ] Poem Aggregator Service
+- [ ] GitHub Actions for CI/CD - JH
+
+By 2025/3/21:
+- [ ] LB
+- [ ] Database
+- [ ] Message Queuing
+
+By 2025/3/30:
+- [ ] Testing
