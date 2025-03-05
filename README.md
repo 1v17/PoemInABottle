@@ -40,8 +40,8 @@ By 2025/3/10:
 - [ ] Prepare testing data (lines, poems, etc.) - JH
 - [ ] Client
 - [ ] API Services - JH
-    - [ ] POST /submit-line
-    - [ ] POST /submit-line/:theme
-    - [ ] GET /poem
-    - [ ] GET /poem/:theme
+    - [x] POST /sentence
+    - [x] POST /sentence/:theme
+    - [x] GET /poem
+    - [x] GET /poem/:theme
     - [ ] AWS Lambda for serverless functions
