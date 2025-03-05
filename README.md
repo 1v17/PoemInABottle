@@ -35,6 +35,11 @@ The project is built with the following technologies:
 
    - **Rule-based**: Group by themes and limit X lines per poem. X could be a random number.
 
+## Declaimer
+The test data is:
+
+1. [William Shakespeare's sonnets](/resources/154_Sonnets_Shakespeare.txt), a collection of 154 poems written in the late 16th century during the English Renaissance. Each sonnet consists of 14 lines, with a rhyme scheme of love, beauty, time, and mortality. We collected and cleaned the data from [Project Gutenberg](https://www.gutenberg.org/ebooks/1041), a digital library of free eBooks. The sonnets are in the public domain, and we are using them for educational purposes.
+
 ## To-Dos
 By 2025/3/10:
 - [ ] Prepare testing data (lines, poems, etc.) - JH
