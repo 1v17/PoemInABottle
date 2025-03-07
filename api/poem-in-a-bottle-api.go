@@ -1,4 +1,4 @@
-package main
+package api
 
 import (
     "encoding/json"
@@ -7,7 +7,20 @@ import (
 	"strings"
 
     "github.com/gorilla/mux"
+    "github.com/aws/aws-sdk-go/aws"
+    "github.com/aws/aws-sdk-go/aws/session"
+    "github.com/aws/aws-sdk-go/service/dynamodb"
+    "github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
+
+    "fmt"
+    "log"
 )
+
+type sentence struct {
+    Author  int    `json:"author"`
+    Content string `json:"content"`
+    Theme   string `json:"theme"`
+}
 
 type poem struct {
     Authors []int      `json:"authors"`
@@ -24,18 +37,6 @@ func (p *poem) stringifyPoem() string {
     return strings.Join(p.Contents, "\n")
 }
 
-type sentence struct {
-    Author  int    `json:"author"`
-    Content string `json:"content"`
-    Theme   string `json:"theme"`
-}
-
-// poemStore holds poems for each theme
-var (
-    poemStore = map[string]*poem{}
-    mu        sync.Mutex
-)
-
 func main() {
     r := mux.NewRouter()
     r.HandleFunc("/poem/{theme}", getPoem).Methods("GET")
@@ -46,15 +47,38 @@ func main() {
     http.ListenAndServe(":8080", r)
 }
 
+// Initialize a session that the SDK will use to load
+// credentials from the shared credentials file ~/.aws/credentials
+// and region from the shared configuration file ~/.aws/config.
+sess := session.Must(session.NewSessionWithOptions(session.Options{
+    SharedConfigState: session.SharedConfigEnable,
+}))
+
+// Create DynamoDB client
+svc := dynamodb.New(sess)
+
+
 func getPoem(w http.ResponseWriter, r *http.Request) {
     theme := mux.Vars(r)["theme"]
     if theme == "" {
         theme = "Random"
     }
 
-    mu.Lock()
-    p, ok := poemStore[theme]
-    mu.Unlock()
+    tableName := "poem-in-a-bottle"
+
+    
+    result, err := svc.GetItem(&dynamodb.GetItemInput{
+        TableName: aws.String(tableName),
+        Key: map[string]*dynamodb.AttributeValue{
+            "Theme": {
+                S: aws.String(theme),
+            },
+        },
+    })
+    if err != nil {
+        log.Fatalf("Got error calling GetItem: %s", err)
+    }
+    
 
     if !ok || len(p.Contents) == 0 {
         http.Error(w, "No poem found for theme: "+theme, http.StatusNotFound)
