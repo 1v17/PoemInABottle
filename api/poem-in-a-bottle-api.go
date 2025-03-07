@@ -43,7 +43,6 @@ func main() {
     r := mux.NewRouter()
     r.HandleFunc("/poem/{theme}", getPoem).Methods("GET")
     r.HandleFunc("/poem", getPoem).Methods("GET")
-    r.HandleFunc("/sentence/{theme}", postSentence).Methods("POST")
     r.HandleFunc("/sentence", postSentence).Methods("POST")
 
     http.ListenAndServe(":8080", r)
