@@ -78,12 +78,6 @@ func getPoem(w http.ResponseWriter, r *http.Request) {
     if err != nil {
         log.Fatalf("Got error calling GetItem: %s", err)
     }
-    
-
-    if !ok || len(p.Contents) == 0 {
-        http.Error(w, "No poem found for theme: "+theme, http.StatusNotFound)
-        return
-    }
 
     w.Header().Set("Content-Type", "application/json")
     json.NewEncoder(w).Encode(p.stringifyPoem())
