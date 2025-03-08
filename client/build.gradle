@@ -25,3 +25,8 @@ jar {
         attributes 'Main-Class': 'LoadTestClient'
     }
 }
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
+}
