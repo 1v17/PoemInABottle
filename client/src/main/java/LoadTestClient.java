@@ -36,8 +36,9 @@ public class LoadTestClient {
 
   public static void main(String[] args) throws Exception {
     if (args.length < 4) {
-      System.out.println(
-          "Usage: java LoadTestClient <threadGroupSize> <numThreadGroups> <delay> <IPAddr>");
+      System.err.println(
+          "Usage: java -jar build/libs/client-1.0-all.jar" +
+              " <threadGroupSize> <numThreadGroups> <delay> <IPAddr>");
       return;
     }
 
