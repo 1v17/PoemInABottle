@@ -61,6 +61,8 @@ public class LoadTestClient {
         executor.shutdownNow(); // Force shutdown
       }
 
+      System.out.println("Initialization phase complete. Starting load test...");
+
       long startTime = System.currentTimeMillis();
 
       try (ExecutorService mainExecutor = Executors.newCachedThreadPool()) {
@@ -160,6 +162,7 @@ public class LoadTestClient {
     System.out.println("Throughput: " + throughput + " requests/sec");
 
     writeCsv(threadGroupSize, numThreadGroups);
+    System.out.println("Response times written to CSV file.");
     calculateStats();
   }
 
