@@ -1,4 +1,7 @@
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -6,7 +9,11 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
-import java.util.concurrent.*;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 public class LoadTestClient {
   private static final int INIT_THREAD_COUNT = 10;
@@ -20,7 +27,7 @@ public class LoadTestClient {
   static {
     THEMES.addAll(THEMES_SET);
   }
-  private static final String FILE_NAME = "sonnets.txt";
+  private static final String FILE_NAME = "sonnets.txt"; // TODO: up the file path
   private static final int EXECUTOR_TIMEOUT = 30;
 
   private enum CircuitState { CLOSED, OPEN, HALF_OPEN }
