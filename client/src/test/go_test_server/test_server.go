@@ -69,32 +69,33 @@ func postSentence(c *gin.Context) {
 		return
 	}
 
+	if request.Author <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid author"})
+		return
+	}
+
+	if request.Content == "" { // content is empty or missing
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Content cannot be empty"})
+		return
+	}
+
+	if request.Theme == "" {
+		request.Theme = "Random"
+	}
+
+	if !validateTheme(request.Theme) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid theme"})
+		return
+	}
+
 	// Process the request in a separate goroutine
 	go func(req Sentence) {
-		if req.Author <= 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid author"})
-			return
-		}
-
-		if req.Content == "" { // content is empty or missing
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Content cannot be empty"})
-			return
-		}
-
-		if req.Theme == "" {
-			req.Theme = "Random"
-		}
-
-		if !validateTheme(req.Theme) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid theme"})
-			return
-		}
-
 		// Simulate processing time
 		time.Sleep(time.Second * 1)
 
-		c.JSON(http.StatusOK, gin.H{"msg": "Sentence queued for theme: " + req.Theme})
 	}(request)
+
+	c.JSON(http.StatusOK, gin.H{"msg": "Sentence queued for theme: " + request.Theme})
 }
 
 func validateTheme(theme string) bool {
