@@ -27,12 +27,18 @@ public class LoadTestClient {
   private static final int INIT_THREAD_COUNT = 10;
   private static final int INIT_REQUESTS_PER_THREAD = 100;
   private static final int REQUESTS_PER_THREAD = 1000;
+  private static final int MAX_FAILURES = 10;
+  private static final int LATENCY_THRESHOLD_MS = 2000;
+  private static final int COOLDOWN_PERIOD_MS = 5000;
   private static final List<String> sonnetLines = Collections.synchronizedList(new ArrayList<>());
   private static final Set<String> THEMES = Collections.synchronizedSet(
       new HashSet<>(Arrays.asList("", "Love", "Death", "Nature", "Beauty")));
   private static final List<String[]> responseTimes =
       Collections.synchronizedList(new ArrayList<>());
   private static final AtomicInteger failedRequests = new AtomicInteger(0);
+  private static CircuitState circuitState = CircuitState.CLOSED;
+  private static long lastFailureTime = 0;
+  private static int failureCount = 0;
 
   public static void main(String[] args) throws Exception {
     if (args.length < 4) {
@@ -102,6 +108,16 @@ public class LoadTestClient {
 
   private static void sendRequests(String ipAddr, int numRequests) {
     for (int i = 0; i < numRequests; i++) {
+      if (circuitState == CircuitState.OPEN
+          && System.currentTimeMillis() - lastFailureTime <= COOLDOWN_PERIOD_MS) {
+        // Skip requests while circuit is open and cooldown has not elapsed
+        return;
+      }
+
+      if (circuitState == CircuitState.OPEN) {
+        circuitState = CircuitState.HALF_OPEN;
+      }
+
       sendPostRequest(ipAddr);
       sendGetRequest(ipAddr);
     }
@@ -141,10 +157,26 @@ public class LoadTestClient {
         }
         int responseCode = conn.getResponseCode();
         long end = System.currentTimeMillis();
+        long latency = end - start;
 
-        responseTimes.add(new String[] {String.valueOf(start), method, String.valueOf(end - start),
+        responseTimes.add(new String[] {String.valueOf(start), method, String.valueOf(latency),
             String.valueOf(responseCode)});
+
         if (responseCode == 200 || responseCode == 201) {
+          if (latency > LATENCY_THRESHOLD_MS) {
+            failureCount++;
+            lastFailureTime = System.currentTimeMillis();
+            if (failureCount >= MAX_FAILURES) {
+              circuitState = CircuitState.OPEN;
+              System.out.println("Circuit breaker tripped! Pausing requests.");
+            }
+          } else {
+            failureCount = 0; // Reset failures on success
+            if (circuitState == CircuitState.HALF_OPEN) {
+              circuitState = CircuitState.CLOSED;
+              System.out.println("Circuit breaker recovered!");
+            }
+          }
           return;
         }
       } catch (Exception e) {
@@ -197,4 +229,6 @@ public class LoadTestClient {
     System.out.println("Median: " + median + " ms");
     System.out.println("P99: " + p99 + " ms");
   }
+
+  private enum CircuitState { CLOSED, OPEN, HALF_OPEN }
 }
