@@ -73,7 +73,7 @@ func postSentence(c *gin.Context) {
 		return
 	}
 
-	if request.Content == "" {
+	if request.Content == "" { // content is empty or missing
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Content cannot be empty"})
 		return
 	}
