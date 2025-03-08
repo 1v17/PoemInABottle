@@ -42,7 +42,8 @@ public class LoadTestClient {
   public static void main(String[] args) throws IOException, InterruptedException {
     if (args.length < 4) {
       System.err.println(
-          "Usage: java -jar LoadTestClient.jar <threadGroupSize> <numThreadGroups> <delay> <IPAddr>");
+          "Usage: java -jar build/libs/client-1.0-all.jar" +
+              " <threadGroupSize> <numThreadGroups> <delay> <IPAddr>");
       return;
     }
 
