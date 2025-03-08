@@ -20,9 +20,10 @@ Write-Output ""
 $payloads = @(
     @{ author = 1; content = "This is a line of a poem."; theme = "Love" },
     @{ author = 2; content = "Another line of a poem."; theme = "InvalidTheme" },
-    @{ author = 3; content = "Yet another line of a poem." },
-    @{ author = 0; content = "Invalid author id."; theme = "Nature" },
-    @{ author = 4; content = ""; theme = "Beauty" }
+    @{ author = 3; content = "Yet another line of a poem." },  # Missing theme
+    @{ author = 0; content = "Invalid author id."; theme = "Nature" },  # Invalid author id
+    @{ author = 4; content = ""; theme = "Beauty" },  # Empty content
+    @{ author = 5; theme = "Love" } # Missing content
 )
 
 foreach ($payload in $payloads) {
