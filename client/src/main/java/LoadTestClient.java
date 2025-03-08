@@ -198,11 +198,13 @@ public class LoadTestClient {
     double throughput = totalRequests / (double) wallTime;
 
     System.out.println("Wall Time: " + wallTime + " seconds");
-    System.out.println("Throughput: " + throughput + " requests/sec");
+    System.out.printf("Throughput: %.2f requests/sec%n", throughput);
 
     writeCsv(threadGroupSize, numThreadGroups);
     System.out.println("Response times written to CSV file.");
-    calculateStats();
+
+    calculateStats("POST");
+    calculateStats("GET");
   }
 
   private static void writeCsv(int threadGroupSize, int numThreadGroups) {
@@ -216,10 +218,15 @@ public class LoadTestClient {
     }
   }
 
-  private static void calculateStats() {
-    List<Long> latencies = responseTimes.stream().map(line -> Long.parseLong(line[2]))
-        .sorted().collect(Collectors.toList());
+  private static void calculateStats(String requestType) {
+    List<Long> latencies = responseTimes.stream()
+        .filter(line -> line[1].equals(requestType))
+        .map(line -> Long.parseLong(line[2]))
+        .sorted()
+        .collect(Collectors.toList());
+
     if (latencies.isEmpty()) {
+      System.out.println("No " + requestType + " requests were made.");
       return;
     }
 
@@ -229,6 +236,7 @@ public class LoadTestClient {
     long median = latencies.get(latencies.size() / 2);
     long p99 = latencies.get((int) (latencies.size() * 0.99));
 
+    System.out.println(requestType + " Request Statistics:");
     System.out.println("Min: " + min + " ms");
     System.out.println("Max: " + max + " ms");
     System.out.println("Mean: " + mean + " ms");
