@@ -8,7 +8,9 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-var fixedPoem = `Let me not to the marriage of true minds
+const (
+	TIME_OUT_SEC = 5
+	FIXED_POEM   = `Let me not to the marriage of true minds
 Admit impediments, love is not love
 Which alters when it alteration finds,
 Or bends with the remover to remove.
@@ -22,6 +24,7 @@ Love alters not with his brief hours and weeks,
 But bears it out even to the edge of doom:
   If this be error and upon me proved,
   I never writ, nor no man ever loved.`
+)
 
 var validThemes = map[string]struct{}{
 	"Love":   {},
@@ -62,7 +65,7 @@ func getPoemByTheme(c *gin.Context) {
 		time.Sleep(time.Second * 1)
 
 		// Simulate fetching poem from database
-		poem := fixedPoem
+		poem := FIXED_POEM
 
 		// Use a channel to send the response back to the main goroutine
 		responseChan := make(chan gin.H)
@@ -81,7 +84,7 @@ func getPoem(c *gin.Context) {
 		time.Sleep(time.Second * 1)
 
 		// Simulate fetching poem from database
-		poem := fixedPoem
+		poem := FIXED_POEM
 
 		// Use a channel to send the response back to the main goroutine
 		responseChan := make(chan gin.H)
@@ -123,7 +126,7 @@ func postSentence(c *gin.Context) {
 	// Process the request in a separate goroutine
 	go func(req Sentence) {
 		// Set a timeout for the database operation
-		_, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		_, cancel := context.WithTimeout(context.Background(), TIME_OUT_SEC*time.Second)
 		defer cancel()
 
 		// Simulate processing time
