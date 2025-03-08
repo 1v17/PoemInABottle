@@ -19,6 +19,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 import org.json.JSONObject;
 
 public class LoadTestClient {
@@ -55,8 +56,8 @@ public class LoadTestClient {
 
     readSonnets();
 
-    try (ExecutorService executor = Executors.newFixedThreadPool(INIT_THREAD_COUNT)) {
-
+    ExecutorService executor = Executors.newFixedThreadPool(INIT_THREAD_COUNT);
+    try {
       // Initialization phase
       for (int i = 0; i < 10; i++) {
         executor.execute(() -> sendRequests(ipAddr, INIT_REQUESTS_PER_THREAD));
@@ -72,7 +73,8 @@ public class LoadTestClient {
 
       long startTime = System.currentTimeMillis();
 
-      try (ExecutorService mainExecutor = Executors.newCachedThreadPool()) {
+      ExecutorService mainExecutor = Executors.newCachedThreadPool();
+      try {
         for (int i = 0; i < numThreadGroups; i++) {
           for (int j = 0; j < threadGroupSize; j++) {
             mainExecutor.execute(() -> sendRequests(ipAddr, REQUESTS_PER_THREAD));
@@ -80,11 +82,15 @@ public class LoadTestClient {
           Thread.sleep(delay);
         }
         mainExecutor.shutdown();
-      }
-      boolean terminated = executor.awaitTermination(EXECUTOR_TIMEOUT_MIN, TimeUnit.MINUTES);
-      if (!terminated) {
-        System.out.println("Warning: Not all tasks finished before timeout!");
-        executor.shutdownNow(); // Force shutdown
+        boolean terminated = mainExecutor.awaitTermination(EXECUTOR_TIMEOUT_MIN, TimeUnit.MINUTES);
+        if (!terminated) {
+          System.out.println("Warning: Not all tasks finished before timeout!");
+          mainExecutor.shutdownNow(); // Force shutdown
+        }
+      } finally {
+        if (!mainExecutor.isTerminated()) {
+          mainExecutor.shutdownNow();
+        }
       }
 
       long endTime = System.currentTimeMillis();
@@ -127,7 +133,7 @@ public class LoadTestClient {
     String line = sonnetLines.get(ThreadLocalRandom.current().nextInt(sonnetLines.size()));
     String theme = new ArrayList<>(THEMES).get(ThreadLocalRandom.current().nextInt(THEMES.size()));
     JSONObject json = new JSONObject();
-    json.put("author", Thread.currentThread().threadId());
+    json.put("author", Thread.currentThread().getId());
     json.put("content", line);
     json.put("theme", theme);
 
@@ -211,14 +217,14 @@ public class LoadTestClient {
   }
 
   private static void calculateStats() {
-    List<Long> latencies = responseTimes.stream().map(line -> Long.parseLong(line[2])).sorted()
-        .toList();
+    List<Long> latencies = responseTimes.stream().map(line -> Long.parseLong(line[2]))
+        .sorted().collect(Collectors.toList());
     if (latencies.isEmpty()) {
       return;
     }
 
-    long min = latencies.getFirst();
-    long max = latencies.getLast();
+    long min = latencies.get(0);
+    long max = latencies.get(latencies.size() - 1);
     double mean = latencies.stream().mapToLong(Long::longValue).average().orElse(0);
     long median = latencies.get(latencies.size() / 2);
     long p99 = latencies.get((int) (latencies.size() * 0.99));
