@@ -1,12 +1,13 @@
 import java.io.BufferedReader;
-import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Objects;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -27,7 +28,7 @@ public class LoadTestClient {
   static {
     THEMES.addAll(THEMES_SET);
   }
-  private static final String FILE_NAME = "sonnets.txt"; // TODO: up the file path
+  private static final String FILE_NAME = "sonnets.txt";
   private static final int EXECUTOR_TIMEOUT = 30;
 
   private enum CircuitState { CLOSED, OPEN, HALF_OPEN }
@@ -141,7 +142,9 @@ public class LoadTestClient {
   }
 
   private static void loadSonnetData() throws IOException {
-    try (BufferedReader br = new BufferedReader(new FileReader(LoadTestClient.FILE_NAME))) {
+    try (BufferedReader br = new BufferedReader(new InputStreamReader(
+        Objects.requireNonNull(LoadTestClient.class.getClassLoader()
+            .getResourceAsStream(FILE_NAME)), StandardCharsets.UTF_8))) {
       String line;
       while ((line = br.readLine()) != null) {
         sonnetLines.add(line);
