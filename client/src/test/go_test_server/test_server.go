@@ -22,11 +22,11 @@ But bears it out even to the edge of doom:
   I never writ, nor no man ever loved.`
 
 var validThemes = map[string]struct{}{
-	"Love":   struct{}{},
-	"Death":  struct{}{},
-	"Nature": struct{}{},
-	"Beauty": struct{}{},
-	"Random": struct{}{},
+	"Love":   {},
+	"Death":  {},
+	"Nature": {},
+	"Beauty": {},
+	"Random": {},
 }
 
 type Sentence struct {
