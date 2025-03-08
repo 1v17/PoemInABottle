@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"time"
 
@@ -54,11 +55,42 @@ func getPoemByTheme(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid theme"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"poem": fixedPoem})
+
+	// Simulate database connection in a goroutine
+	go func() {
+		// Simulate processing time
+		time.Sleep(time.Second * 1)
+
+		// Simulate fetching poem from database
+		poem := fixedPoem
+
+		// Use a channel to send the response back to the main goroutine
+		responseChan := make(chan gin.H)
+		responseChan <- gin.H{"poem": poem}
+		close(responseChan)
+
+		// Send the response
+		c.JSON(http.StatusOK, <-responseChan)
+	}()
 }
 
 func getPoem(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"poem": fixedPoem})
+	// Simulate database connection in a goroutine
+	go func() {
+		// Simulate processing time
+		time.Sleep(time.Second * 1)
+
+		// Simulate fetching poem from database
+		poem := fixedPoem
+
+		// Use a channel to send the response back to the main goroutine
+		responseChan := make(chan gin.H)
+		responseChan <- gin.H{"poem": poem}
+		close(responseChan)
+
+		// Send the response
+		c.JSON(http.StatusOK, <-responseChan)
+	}()
 }
 
 func postSentence(c *gin.Context) {
@@ -90,6 +122,10 @@ func postSentence(c *gin.Context) {
 
 	// Process the request in a separate goroutine
 	go func(req Sentence) {
+		// Set a timeout for the database operation
+		_, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
 		// Simulate processing time
 		time.Sleep(time.Second * 1)
 
