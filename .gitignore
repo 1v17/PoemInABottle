@@ -41,3 +41,6 @@ bin/
 
 ### Mac OS ###
 .DS_Store
+
+### Binary files ###
+client/src/test/go_test_server/test_server
