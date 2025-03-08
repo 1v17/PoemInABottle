@@ -23,7 +23,7 @@ import org.json.JSONObject;
 
 public class LoadTestClient {
   public static final String FILE_PATH = "sonnets.txt";
-  private static final int EXECUTOR_TIMEOUT = 30;
+  private static final int EXECUTOR_TIMEOUT_MIN = 30; // 30 minutes
   private static final int INIT_THREAD_COUNT = 10;
   private static final int INIT_REQUESTS_PER_THREAD = 100;
   private static final int REQUESTS_PER_THREAD = 1000;
@@ -81,7 +81,7 @@ public class LoadTestClient {
         }
         mainExecutor.shutdown();
       }
-      boolean terminated = executor.awaitTermination(EXECUTOR_TIMEOUT, TimeUnit.MINUTES);
+      boolean terminated = executor.awaitTermination(EXECUTOR_TIMEOUT_MIN, TimeUnit.MINUTES);
       if (!terminated) {
         System.out.println("Warning: Not all tasks finished before timeout!");
         executor.shutdownNow(); // Force shutdown
