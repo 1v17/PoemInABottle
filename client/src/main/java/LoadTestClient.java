@@ -30,7 +30,7 @@ public class LoadTestClient {
   private static final int INIT_THREAD_COUNT = 10;
   private static final int INIT_REQUESTS_PER_THREAD = 100;
   private static final int REQUESTS_PER_THREAD = 1000;
-  private static final int MAX_FAILURES = 20;
+  private static final int MAX_FAILURES = 100;
   private static final int LATENCY_THRESHOLD_MS = 5000;
   private static final int COOLDOWN_PERIOD_MS = 5000;
   private static final List<String> sonnetLines = Collections.synchronizedList(new ArrayList<>());
