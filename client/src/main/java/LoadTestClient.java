@@ -15,11 +15,12 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.json.JSONObject;
 
@@ -30,7 +31,7 @@ public class LoadTestClient {
   private static final int INIT_THREAD_COUNT = 10;
   private static final int INIT_REQUESTS_PER_THREAD = 100;
   private static final int REQUESTS_PER_THREAD = 1000;
-  private static final int MAX_FAILURES = 100;
+  private static final int MAX_FAILURES = 20;
   private static final int LATENCY_THRESHOLD_MS = 5000;
   private static final int COOLDOWN_PERIOD_MS = 5000;
   private static final List<String> sonnetLines = Collections.synchronizedList(new ArrayList<>());
@@ -39,6 +40,7 @@ public class LoadTestClient {
   private static final List<String[]> responseTimes =
       Collections.synchronizedList(new ArrayList<>());
   private static final AtomicInteger failedRequests = new AtomicInteger(0);
+  private static final Logger logger = Logger.getLogger(LoadTestClient.class.getName());
   private static CircuitState circuitState = CircuitState.CLOSED;
   private static long lastFailureTime = 0;
   private static int failureCount = 0;
@@ -60,12 +62,14 @@ public class LoadTestClient {
 
     readSonnets();
 
-    ExecutorService executor = Executors.newFixedThreadPool(INIT_THREAD_COUNT);
+    ThreadPoolExecutor executor =
+        (ThreadPoolExecutor) Executors.newFixedThreadPool(INIT_THREAD_COUNT);
     try {
       // Initialization phase
       for (int i = 0; i < 10; i++) {
         executor.execute(() -> sendRequests(ipAddr, INIT_REQUESTS_PER_THREAD));
       }
+      logThreadPoolStats(executor);
       executor.shutdown();
       boolean initTerminated = executor.awaitTermination(Long.MAX_VALUE, TimeUnit.MILLISECONDS);
       if (!initTerminated) {
@@ -77,12 +81,13 @@ public class LoadTestClient {
 
       long startTime = System.currentTimeMillis();
 
-      ExecutorService mainExecutor = Executors.newCachedThreadPool();
+      ThreadPoolExecutor mainExecutor = (ThreadPoolExecutor) Executors.newCachedThreadPool();
       try {
         for (int i = 0; i < numThreadGroups; i++) {
           for (int j = 0; j < threadGroupSize; j++) {
             mainExecutor.execute(() -> sendRequests(ipAddr, REQUESTS_PER_THREAD));
           }
+          logThreadPoolStats(mainExecutor);
           Thread.sleep(delay);
         }
         mainExecutor.shutdown();
@@ -102,6 +107,14 @@ public class LoadTestClient {
     } catch (InterruptedException e) {
       System.err.println("Error: Load test interrupted. " + e.getMessage());
     }
+  }
+
+  private static void logThreadPoolStats(ThreadPoolExecutor executor) {
+    logger.info("\nThreadPool Stats: " +
+        "Pool Size: " + executor.getPoolSize() +
+        ", Active Threads: " + executor.getActiveCount() +
+        ", Completed Tasks: " + executor.getCompletedTaskCount() +
+        ", Task Count: " + executor.getTaskCount());
   }
 
   private static void readSonnets() throws IOException {
