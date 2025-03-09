@@ -205,8 +205,9 @@ public class LoadTestClient {
     writeCsv(threadGroupSize, numThreadGroups);
     System.out.println("Response times written to CSV file.");
 
-    calculateStats("POST");
-    calculateStats("GET");
+    calculateStats("Overall", responseTimes);
+    calculateStats("POST", filterResponseTimes("POST"));
+    calculateStats("GET", filterResponseTimes("GET"));
   }
 
   private static void writeCsv(int threadGroupSize, int numThreadGroups) {
@@ -228,9 +229,14 @@ public class LoadTestClient {
     }
   }
 
-  private static void calculateStats(String requestType) {
-    List<Long> latencies = responseTimes.stream()
+  private static List<String[]> filterResponseTimes(String requestType) {
+    return responseTimes.stream()
         .filter(line -> line[1].equals(requestType))
+        .collect(Collectors.toList());
+  }
+
+  private static void calculateStats(String requestType, List<String[]> filteredResponseTimes) {
+    List<Long> latencies = filteredResponseTimes.stream()
         .map(line -> Long.parseLong(line[2]))
         .sorted()
         .collect(Collectors.toList());
