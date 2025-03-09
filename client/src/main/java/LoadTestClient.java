@@ -30,8 +30,8 @@ public class LoadTestClient {
   private static final int INIT_THREAD_COUNT = 10;
   private static final int INIT_REQUESTS_PER_THREAD = 100;
   private static final int REQUESTS_PER_THREAD = 1000;
-  private static final int MAX_FAILURES = 10;
-  private static final int LATENCY_THRESHOLD_MS = 2000;
+  private static final int MAX_FAILURES = 20;
+  private static final int LATENCY_THRESHOLD_MS = 5000;
   private static final int COOLDOWN_PERIOD_MS = 5000;
   private static final List<String> sonnetLines = Collections.synchronizedList(new ArrayList<>());
   private static final Set<String> THEMES = Collections.synchronizedSet(
@@ -252,12 +252,12 @@ public class LoadTestClient {
     long median = latencies.get(latencies.size() / 2);
     long p99 = latencies.get((int) (latencies.size() * 0.99));
 
-    System.out.println(requestType + " Request Statistics:");
-    System.out.println("Min: " + min + " ms");
-    System.out.println("Max: " + max + " ms");
-    System.out.println("Mean: " + mean + " ms");
-    System.out.println("Median: " + median + " ms");
-    System.out.println("P99: " + p99 + " ms");
+    System.out.println("\n" + requestType + " Request Statistics:");
+    System.out.printf("Min: %d ms%n", min);
+    System.out.printf("Max: %d ms%n", max);
+    System.out.printf("Mean: %.2f ms%n", mean);
+    System.out.printf("Median: %d ms%n", median);
+    System.out.printf("P99: %d ms%n", p99);
   }
 
   private enum CircuitState { CLOSED, OPEN, HALF_OPEN }
