@@ -1,4 +1,5 @@
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -24,6 +25,7 @@ import org.json.JSONObject;
 
 public class LoadTestClient {
   public static final String FILE_PATH = "sonnets.txt";
+  public static final String RESULT_PATH = "../results";
   private static final int EXECUTOR_TIMEOUT_MIN = 30; // 30 minutes
   private static final int INIT_THREAD_COUNT = 10;
   private static final int INIT_REQUESTS_PER_THREAD = 100;
@@ -208,8 +210,16 @@ public class LoadTestClient {
   }
 
   private static void writeCsv(int threadGroupSize, int numThreadGroups) {
-    String filename = String.format("response time size-%d %d groups.csv",
-        threadGroupSize, numThreadGroups);
+    String folderName = RESULT_PATH; // Go up one level to 'client' directory
+    File folder = new File(folderName);
+
+    if (!folder.exists() || !folder.isDirectory()) {
+      folderName = "."; // Default to current directory
+    }
+
+    String filename = String.format("%s/response_time_size-%d_%d_groups.csv",
+        folderName, threadGroupSize, numThreadGroups);
+
     try (PrintWriter writer = new PrintWriter(filename)) {
       writer.println("start_time,request_type,response_time,response_code");
       responseTimes.forEach(line -> writer.println(String.join(",", line)));
