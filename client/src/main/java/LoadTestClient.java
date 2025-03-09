@@ -42,12 +42,13 @@ public class LoadTestClient {
   private static CircuitState circuitState = CircuitState.CLOSED;
   private static long lastFailureTime = 0;
   private static int failureCount = 0;
+  private static boolean useCircuitBreaker = true;
 
   public static void main(String[] args) throws Exception {
     if (args.length < 4) {
       System.err.println(
           "Usage: java -jar build/libs/client-1.0-all.jar" +
-              " <threadGroupSize> <numThreadGroups> <delay> <IPAddr>");
+              " <threadGroupSize> <numThreadGroups> <delay> <IPAddr> [useCircuitBreaker]");
       return;
     }
 
@@ -55,6 +56,7 @@ public class LoadTestClient {
     int numThreadGroups = Integer.parseInt(args[1]);
     int delay = Integer.parseInt(args[2]) * 1000;
     String ipAddr = args[3];
+    useCircuitBreaker = args.length > 4 && Boolean.parseBoolean(args[4]);
 
     readSonnets();
 
@@ -100,7 +102,6 @@ public class LoadTestClient {
     } catch (InterruptedException e) {
       System.err.println("Error: Load test interrupted. " + e.getMessage());
     }
-
   }
 
   private static void readSonnets() throws IOException {
@@ -116,13 +117,13 @@ public class LoadTestClient {
 
   private static void sendRequests(String ipAddr, int numRequests) {
     for (int i = 0; i < numRequests; i++) {
-      if (circuitState == CircuitState.OPEN
+      if (useCircuitBreaker && circuitState == CircuitState.OPEN
           && System.currentTimeMillis() - lastFailureTime <= COOLDOWN_PERIOD_MS) {
         // Skip requests while circuit is open and cooldown has not elapsed
         return;
       }
 
-      if (circuitState == CircuitState.OPEN) {
+      if (useCircuitBreaker && circuitState == CircuitState.OPEN) {
         circuitState = CircuitState.HALF_OPEN;
       }
 
@@ -171,24 +172,28 @@ public class LoadTestClient {
             String.valueOf(responseCode)});
 
         if (responseCode == 200 || responseCode == 201) {
-          if (latency > LATENCY_THRESHOLD_MS) {
-            failureCount++;
-            lastFailureTime = System.currentTimeMillis();
-            if (failureCount >= MAX_FAILURES) {
-              circuitState = CircuitState.OPEN;
-              System.out.println("Circuit breaker tripped! Pausing requests.");
-            }
-          } else {
-            failureCount = 0; // Reset failures on success
-            if (circuitState == CircuitState.HALF_OPEN) {
-              circuitState = CircuitState.CLOSED;
-              System.out.println("Circuit breaker recovered!");
-            }
-          }
+          handleCircuitBreakerOnSuccess(latency);
           return;
         }
       } catch (Exception e) {
         failedRequests.incrementAndGet();
+      }
+    }
+  }
+
+  private static void handleCircuitBreakerOnSuccess(long latency) {
+    if (useCircuitBreaker && latency > LATENCY_THRESHOLD_MS) {
+      failureCount++;
+      lastFailureTime = System.currentTimeMillis();
+      if (failureCount >= MAX_FAILURES) {
+        circuitState = CircuitState.OPEN;
+        System.out.println("Circuit breaker tripped! Pausing requests.");
+      }
+    } else {
+      failureCount = 0; // Reset failures on success
+      if (useCircuitBreaker && circuitState == CircuitState.HALF_OPEN) {
+        circuitState = CircuitState.CLOSED;
+        System.out.println("Circuit breaker recovered!");
       }
     }
   }
