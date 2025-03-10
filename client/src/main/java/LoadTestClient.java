@@ -18,6 +18,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -71,8 +72,12 @@ public class LoadTestClient {
         (ThreadPoolExecutor) Executors.newFixedThreadPool(INIT_THREAD_COUNT);
     try {
       // Initialization phase
+      List<Future<?>> initFutures = new ArrayList<>();
       for (int i = 0; i < 10; i++) {
-        executor.execute(() -> sendRequests(ipAddr, INIT_REQUESTS_PER_THREAD));
+        initFutures.add(executor.submit(() -> sendRequests(ipAddr, INIT_REQUESTS_PER_THREAD)));
+      }
+      for (Future<?> future : initFutures) {
+        future.get(); // Wait for all initialization tasks to complete
       }
       executor.shutdown();
       boolean initTerminated = executor.awaitTermination(Long.MAX_VALUE, TimeUnit.MILLISECONDS);
@@ -91,10 +96,11 @@ public class LoadTestClient {
         for (int i = 0; i < numThreadGroups; i++) {
           scheduler.schedule(() -> {
             for (int j = 0; j < threadGroupSize; j++) {
-              mainExecutor.execute(() -> sendRequests(ipAddr, REQUESTS_PER_THREAD));
+              mainExecutor.submit(() -> sendRequests(ipAddr, REQUESTS_PER_THREAD));
             }
           }, (long) i * delay, TimeUnit.MILLISECONDS);
         }
+        scheduler.shutdown();
         boolean terminated = mainExecutor.awaitTermination(EXECUTOR_TIMEOUT_MIN, TimeUnit.MINUTES);
         if (!terminated) {
           System.out.println("Warning: Not all tasks finished before timeout!");
