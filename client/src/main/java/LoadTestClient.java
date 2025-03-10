@@ -24,14 +24,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
-import okhttp3.Call;
-import okhttp3.Callback;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
-import org.jetbrains.annotations.NotNull;
 import org.json.JSONObject;
 
 public class LoadTestClient {
@@ -84,18 +81,25 @@ public class LoadTestClient {
         (ThreadPoolExecutor) Executors.newFixedThreadPool(INIT_THREAD_COUNT);
     try {
       // Initialization phase
-      List<Future<?>> initFutures = new ArrayList<>();
+      List<Future<Integer>> initFutures = new ArrayList<>();
       for (int i = 0; i < 10; i++) {
         initFutures.add(executor.submit(() -> sendRequests(ipAddr, INIT_REQUESTS_PER_THREAD)));
       }
-      for (Future<?> future : initFutures) {
-        future.get(); // Wait for all initialization tasks to complete
+      int totalSuccessfulRequests = 0;
+      for (Future<Integer> future : initFutures) {
+        totalSuccessfulRequests += future.get();
       }
       executor.shutdown();
       boolean initTerminated = executor.awaitTermination(Long.MAX_VALUE, TimeUnit.MILLISECONDS);
       if (!initTerminated) {
         System.out.println("Warning: Initialization phase not finished before timeout!");
         executor.shutdownNow(); // Force shutdown
+      }
+
+      if (totalSuccessfulRequests < 10 * INIT_REQUESTS_PER_THREAD) {
+        System.err.println(
+            "Initialization phase did not receive enough successful responses. Aborting load test.");
+        return;
       }
 
       System.out.println("Initialization phase complete. Starting load test...");
@@ -153,25 +157,29 @@ public class LoadTestClient {
     }
   }
 
-  private static void sendRequests(String ipAddr, int numRequests) {
+  private static int sendRequests(String ipAddr, int numRequests) {
+    int successfulRequests = 0;
     for (int i = 0; i < numRequests; i++) {
       if (useCircuitBreaker && circuitState == CircuitState.OPEN
           && System.currentTimeMillis() - lastFailureTime <= COOLDOWN_PERIOD_MS) {
-        // Skip only this iteration rather than returning and aborting all further requests.
         continue;
       }
 
-      // If cooldown has elapsed, attempt one request to test the waters.
       if (useCircuitBreaker && circuitState == CircuitState.OPEN) {
         circuitState = CircuitState.HALF_OPEN;
       }
 
-      sendPostRequest(ipAddr);
-      sendGetRequest(ipAddr);
+      if (sendPostRequest(ipAddr)) {
+        successfulRequests++;
+      }
+      if (sendGetRequest(ipAddr)) {
+        successfulRequests++;
+      }
     }
+    return successfulRequests;
   }
 
-  private static void sendPostRequest(String ipAddr) {
+  private static boolean sendPostRequest(String ipAddr) {
     String line = sonnetLines.get(ThreadLocalRandom.current().nextInt(sonnetLines.size()));
     String theme = new ArrayList<>(THEMES).get(ThreadLocalRandom.current().nextInt(THEMES.size()));
     JSONObject json = new JSONObject();
@@ -180,16 +188,16 @@ public class LoadTestClient {
     json.put("theme", theme);
 
     String url = ipAddr + "/sentence";
-    sendHttpRequest(url, "POST", json.toString());
+    return sendHttpRequest(url, "POST", json.toString());
   }
 
-  private static void sendGetRequest(String ipAddr) {
+  private static boolean sendGetRequest(String ipAddr) {
     String theme = new ArrayList<>(THEMES).get(ThreadLocalRandom.current().nextInt(THEMES.size()));
     String url = theme.isEmpty() ? ipAddr + "/poem" : ipAddr + "/poem/" + theme;
-    sendHttpRequest(url, "GET", null);
+    return sendHttpRequest(url, "GET", null);
   }
 
-  private static void sendHttpRequest(String url, String method, String payload) {
+  private static boolean sendHttpRequest(String url, String method, String payload) {
     Request request;
     if (method.equals("POST")) {
       RequestBody body =
@@ -206,35 +214,27 @@ public class LoadTestClient {
     }
 
     long start = System.currentTimeMillis();
-    client.newCall(request).enqueue(new Callback() {
-      @Override
-      public void onFailure(@NotNull Call call, @NotNull IOException e) {
+    try (Response response = client.newCall(request).execute()) {
+      long end = System.currentTimeMillis();
+      long latency = end - start;
+      int responseCode = response.code();
+
+      if (responseCode == 200 || responseCode == 201) {
+        responseTimes.add(new String[] {String.valueOf(start), method, String.valueOf(latency),
+            String.valueOf(responseCode)});
+        handleCircuitBreakerOnSuccess(latency);
+
+        long completedSecond = (end - startTime) / 1000;
+        throughput.computeIfAbsent(completedSecond, k -> new AtomicInteger(0)).incrementAndGet();
+        return true;
+      } else {
         failedRequests.incrementAndGet();
+        return false;
       }
-
-      @Override
-      public void onResponse(@NotNull Call call, @NotNull Response response) {
-        try (Response res = response) {
-          long end = System.currentTimeMillis();
-          long latency = end - start;
-          int responseCode = res.code();
-
-          if (responseCode == 200 || responseCode == 201) {
-            responseTimes.add(new String[] {String.valueOf(start), method, String.valueOf(latency),
-                String.valueOf(responseCode)});
-            handleCircuitBreakerOnSuccess(latency);
-
-            long completedSecond = (end - startTime) / 1000;
-            throughput.computeIfAbsent(completedSecond, k -> new AtomicInteger(0))
-                .incrementAndGet();
-          } else {
-            failedRequests.incrementAndGet();
-          }
-        } catch (Exception e) {
-          System.err.println("Error processing response: " + e.getMessage());
-        }
-      }
-    });
+    } catch (IOException e) {
+      failedRequests.incrementAndGet();
+      return false;
+    }
   }
 
   private static void handleCircuitBreakerOnSuccess(long latency) {
@@ -260,7 +260,6 @@ public class LoadTestClient {
     long successfulRequests = responseTimes.size();
     long failedRequestsCount = failedRequests.get();
     double throughput = successfulRequests / (double) wallTime;
-
 
     System.out.println("Wall Time: " + wallTime + " seconds");
     System.out.printf("Throughput: %.2f requests/sec%n", throughput);
