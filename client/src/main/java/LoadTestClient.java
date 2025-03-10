@@ -3,10 +3,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.OutputStream;
 import java.io.PrintWriter;
-import java.net.HttpURLConnection;
-import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -27,6 +24,14 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
+import org.jetbrains.annotations.NotNull;
 import org.json.JSONObject;
 
 public class LoadTestClient {
@@ -46,11 +51,13 @@ public class LoadTestClient {
       new ConcurrentLinkedQueue<>();
   private static final AtomicInteger failedRequests = new AtomicInteger(0);
   private static final Logger logger = Logger.getLogger(LoadTestClient.class.getName());
+  private static final ConcurrentHashMap<Long, AtomicInteger> throughput =
+      new ConcurrentHashMap<>();
+  private static final OkHttpClient client = new OkHttpClient();
   private static CircuitState circuitState = CircuitState.CLOSED;
   private static long lastFailureTime = 0;
   private static int failureCount = 0;
   private static boolean useCircuitBreaker = true;
-  private static final ConcurrentHashMap<Long, AtomicInteger> throughput = new ConcurrentHashMap<>();
   private static long startTime;
 
   public static void main(String[] args) throws Exception {
@@ -153,12 +160,12 @@ public class LoadTestClient {
         // Skip only this iteration rather than returning and aborting all further requests.
         continue;
       }
-  
+
       // If cooldown has elapsed, attempt one request to test the waters.
       if (useCircuitBreaker && circuitState == CircuitState.OPEN) {
         circuitState = CircuitState.HALF_OPEN;
       }
-  
+
       sendPostRequest(ipAddr);
       sendGetRequest(ipAddr);
     }
@@ -183,22 +190,33 @@ public class LoadTestClient {
   }
 
   private static void sendHttpRequest(String url, String method, String payload) {
-    for (int i = 0; i < 5; i++) { // Retry up to 5 times
-      try {
-        long start = System.currentTimeMillis();
-        URI uri = new URI(url);
-        HttpURLConnection conn = (HttpURLConnection) uri.toURL().openConnection();
-        conn.setRequestMethod(method);
-        conn.setRequestProperty("Content-Type", "application/json");
-        if (method.equals("POST")) {
-          conn.setDoOutput(true);
-          try (OutputStream os = conn.getOutputStream()) {
-            os.write(payload.getBytes());
-          }
-        }
-        int responseCode = conn.getResponseCode();
+    Request request;
+    if (method.equals("POST")) {
+      RequestBody body =
+          RequestBody.create(payload, MediaType.get("application/json; charset=utf-8"));
+      request = new Request.Builder()
+          .url(url)
+          .post(body)
+          .build();
+    } else {
+      request = new Request.Builder()
+          .url(url)
+          .get()
+          .build();
+    }
+
+    long start = System.currentTimeMillis();
+    client.newCall(request).enqueue(new Callback() {
+      @Override
+      public void onFailure(@NotNull Call call, @NotNull IOException e) {
+        failedRequests.incrementAndGet();
+      }
+
+      @Override
+      public void onResponse(@NotNull Call call, @NotNull Response response) {
         long end = System.currentTimeMillis();
         long latency = end - start;
+        int responseCode = response.code();
 
         responseTimes.add(new String[] {String.valueOf(start), method, String.valueOf(latency),
             String.valueOf(responseCode)});
@@ -209,12 +227,11 @@ public class LoadTestClient {
 
         if (responseCode == 200 || responseCode == 201) {
           handleCircuitBreakerOnSuccess(latency);
-          return;
+        } else {
+          failedRequests.incrementAndGet();
         }
-      } catch (Exception e) {
-        failedRequests.incrementAndGet();
       }
-    }
+    });
   }
 
   private static void handleCircuitBreakerOnSuccess(long latency) {
