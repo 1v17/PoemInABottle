@@ -209,9 +209,22 @@ public class LoadTestClient {
         if (responseCode == 200 || responseCode == 201) {
           handleCircuitBreakerOnSuccess(latency);
           return;
+        } else {
+          failureCount++;
+          if (failureCount >= MAX_FAILURES) {
+            circuitState = CircuitState.OPEN;
+            lastFailureTime = System.currentTimeMillis();
+            System.out.println("Circuit breaker tripped! Pausing requests.");
+          }
         }
       } catch (Exception e) {
         failedRequests.incrementAndGet();
+        failureCount++;
+        if (failureCount >= MAX_FAILURES) {
+          circuitState = CircuitState.OPEN;
+          lastFailureTime = System.currentTimeMillis();
+          System.out.println("Circuit breaker tripped! Pausing requests.");
+        }
       }
     }
   }
