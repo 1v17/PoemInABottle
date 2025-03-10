@@ -15,6 +15,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
@@ -35,11 +37,11 @@ public class LoadTestClient {
   private static final int MAX_FAILURES = 20;
   private static final int LATENCY_THRESHOLD_MS = 5000;
   private static final int COOLDOWN_PERIOD_MS = 5000;
-  private static final List<String> sonnetLines = Collections.synchronizedList(new ArrayList<>());
+  private static final CopyOnWriteArrayList<String> sonnetLines = new CopyOnWriteArrayList<>();
   private static final Set<String> THEMES = Collections.synchronizedSet(
       new HashSet<>(Arrays.asList("", "Love", "Death", "Nature", "Beauty")));
-  private static final List<String[]> responseTimes =
-      Collections.synchronizedList(new ArrayList<>());
+  private static final ConcurrentLinkedQueue<String[]> responseTimes =
+      new ConcurrentLinkedQueue<>();
   private static final AtomicInteger failedRequests = new AtomicInteger(0);
   private static final Logger logger = Logger.getLogger(LoadTestClient.class.getName());
   private static CircuitState circuitState = CircuitState.CLOSED;
@@ -229,7 +231,7 @@ public class LoadTestClient {
     writeCsv(threadGroupSize, numThreadGroups);
     System.out.println("Response times written to CSV file.");
 
-    calculateStats("Overall", responseTimes);
+    calculateStats("Overall", new ArrayList<>(responseTimes));
     calculateStats("POST", filterResponseTimes("POST"));
     calculateStats("GET", filterResponseTimes("GET"));
   }
