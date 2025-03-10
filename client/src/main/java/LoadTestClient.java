@@ -15,6 +15,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
@@ -49,6 +50,8 @@ public class LoadTestClient {
   private static long lastFailureTime = 0;
   private static int failureCount = 0;
   private static boolean useCircuitBreaker = true;
+  private static final ConcurrentHashMap<Long, AtomicInteger> throughput = new ConcurrentHashMap<>();
+  private static long startTime;
 
   public static void main(String[] args) throws Exception {
     if (args.length < 4) {
@@ -90,7 +93,7 @@ public class LoadTestClient {
 
       System.out.println("Initialization phase complete. Starting load test...");
 
-      long startTime = System.currentTimeMillis();
+      startTime = System.currentTimeMillis(); // Initialize start time
 
       ThreadPoolExecutor mainExecutor = (ThreadPoolExecutor) Executors.newCachedThreadPool();
       try {
@@ -199,6 +202,10 @@ public class LoadTestClient {
         responseTimes.add(new String[] {String.valueOf(start), method, String.valueOf(latency),
             String.valueOf(responseCode)});
 
+        // Calculate the second in which the request was completed
+        long completedSecond = (end - startTime) / 1000;
+        throughput.computeIfAbsent(completedSecond, k -> new AtomicInteger(0)).incrementAndGet();
+
         if (responseCode == 200 || responseCode == 201) {
           handleCircuitBreakerOnSuccess(latency);
           return;
@@ -239,15 +246,16 @@ public class LoadTestClient {
     System.out.println("Total Successful Requests: " + successfulRequests);
     System.out.println("Total Failed Requests: " + failedRequestsCount);
 
-    writeCsv(threadGroupSize, numThreadGroups);
-    System.out.println("Response times written to CSV file.");
+    writeResponseTimesCsv(threadGroupSize, numThreadGroups);
+    writeThroughputCsv(threadGroupSize, numThreadGroups);
+    System.out.println("Response times and throughput data written to CSV files.");
 
     calculateStats("Overall", new ArrayList<>(responseTimes));
     calculateStats("POST", filterResponseTimes("POST"));
     calculateStats("GET", filterResponseTimes("GET"));
   }
 
-  private static void writeCsv(int threadGroupSize, int numThreadGroups) {
+  private static void writeResponseTimesCsv(int threadGroupSize, int numThreadGroups) {
     String folderName = RESULT_PATH; // Go up one level to 'client' directory
     File folder = new File(folderName);
 
@@ -262,7 +270,26 @@ public class LoadTestClient {
       writer.println("start_time,request_type,response_time,response_code");
       responseTimes.forEach(line -> writer.println(String.join(",", line)));
     } catch (FileNotFoundException e) {
-      System.err.println("Error writing CSV file: " + e.getMessage());
+      System.err.println("Error writing response times CSV file: " + e.getMessage());
+    }
+  }
+
+  private static void writeThroughputCsv(int threadGroupSize, int numThreadGroups) {
+    String folderName = RESULT_PATH; // Go up one level to 'client' directory
+    File folder = new File(folderName);
+
+    if (!folder.exists() || !folder.isDirectory()) {
+      folderName = "."; // Default to current directory
+    }
+
+    String filename = String.format("%s/throughput_size-%d_%d_groups.csv",
+        folderName, threadGroupSize, numThreadGroups);
+
+    try (PrintWriter writer = new PrintWriter(filename)) {
+      writer.println("second,requests_completed");
+      throughput.forEach((second, count) -> writer.println(second + "," + count.get()));
+    } catch (FileNotFoundException e) {
+      System.err.println("Error writing throughput CSV file: " + e.getMessage());
     }
   }
 
