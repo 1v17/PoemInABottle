@@ -60,6 +60,8 @@ public class LoadTestClient {
     String ipAddr = args[3];
     useCircuitBreaker = args.length > 4 && Boolean.parseBoolean(args[4]);
 
+    System.out.printf("Using circuit breaker: %b%n", useCircuitBreaker);
+
     readSonnets();
 
     ThreadPoolExecutor executor =
