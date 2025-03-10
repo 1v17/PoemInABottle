@@ -62,7 +62,9 @@ public class LoadTestClient {
     int numThreadGroups = Integer.parseInt(args[1]);
     int delay = Integer.parseInt(args[2]) * 1000;
     String ipAddr = args[3];
-    useCircuitBreaker = args.length > 4 && Boolean.parseBoolean(args[4]);
+    if (args.length > 4) {
+      useCircuitBreaker = Boolean.parseBoolean(args[4]);
+    }
 
     System.out.printf("Using circuit breaker: %b%n", useCircuitBreaker);
 
@@ -96,7 +98,8 @@ public class LoadTestClient {
         for (int i = 0; i < numThreadGroups; i++) {
           final int groupIndex = i;
           scheduler.schedule(() -> {
-            System.out.printf("Starting thread group %d at %d ms%n", groupIndex, System.currentTimeMillis() - startTime);
+            System.out.printf("Starting thread group %d at %d ms%n", groupIndex,
+                System.currentTimeMillis() - startTime);
             for (int j = 0; j < threadGroupSize; j++) {
               mainExecutor.submit(() -> sendRequests(ipAddr, REQUESTS_PER_THREAD));
             }
