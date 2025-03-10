@@ -22,6 +22,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -61,11 +62,11 @@ public class LoadTestClient {
   private static final CloseableHttpClient client = HttpClients.custom()
       .setConnectionManager(connectionManager)
       .build();
+  private static final AtomicLong startTime = new AtomicLong();
   private static CircuitState circuitState = CircuitState.CLOSED;
   private static long lastFailureTime = 0;
   private static int failureCount = 0;
   private static boolean useCircuitBreaker = true;
-  private static long startTime;
 
   static {
     connectionManager.setMaxTotal(MAX_TOTAL_CONN);
@@ -124,7 +125,7 @@ public class LoadTestClient {
       responseTimes.clear();
       failedRequests.set(0);
 
-      startTime = System.currentTimeMillis(); // Initialize start time
+      startTime.set(System.currentTimeMillis()); // Initialize start time
 
       // Main execution phase
       ThreadPoolExecutor mainExecutor = (ThreadPoolExecutor) Executors.newCachedThreadPool();
@@ -134,7 +135,7 @@ public class LoadTestClient {
         final int groupIndex = i;
         scheduler.schedule(() -> {
           System.out.printf("Starting thread group %d at %d ms%n", groupIndex,
-              System.currentTimeMillis() - startTime);
+              System.currentTimeMillis() - startTime.get());
           for (int j = 0; j < threadGroupSize; j++) {
             mainFutures.add(mainExecutor.submit(() -> sendRequests(ipAddr, REQUESTS_PER_THREAD)));
           }
@@ -172,7 +173,7 @@ public class LoadTestClient {
 
       System.out.println("Load test complete. Generating report...");
       long endTime = System.currentTimeMillis();
-      generateReport(startTime, endTime, threadGroupSize, numThreadGroups);
+      generateReport(startTime.get(), endTime, threadGroupSize, numThreadGroups);
     } catch (InterruptedException e) {
       System.err.println("Error: Load test interrupted. " + e.getMessage());
     }
@@ -259,7 +260,7 @@ public class LoadTestClient {
         responseTimes.add(new String[] {String.valueOf(start), method, String.valueOf(latency),
             String.valueOf(responseCode)});
         handleCircuitBreakerOnSuccess(latency);
-        long completedSecond = (end - startTime) / 1000;
+        long completedSecond = (end - startTime.get()) / 1000;
         throughput.computeIfAbsent(completedSecond,
             k -> new AtomicInteger(0)).incrementAndGet();
         EntityUtils.consume(response.getEntity());
