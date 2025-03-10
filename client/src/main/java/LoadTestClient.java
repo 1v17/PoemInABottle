@@ -24,11 +24,13 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
-import okhttp3.MediaType;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.RequestBody;
-import okhttp3.Response;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.util.EntityUtils;
 import org.json.JSONObject;
 
 public class LoadTestClient {
@@ -50,7 +52,7 @@ public class LoadTestClient {
   private static final Logger logger = Logger.getLogger(LoadTestClient.class.getName());
   private static final ConcurrentHashMap<Long, AtomicInteger> throughput =
       new ConcurrentHashMap<>();
-  private static final OkHttpClient client = new OkHttpClient();
+  private static final CloseableHttpClient client = HttpClients.createDefault();
   private static CircuitState circuitState = CircuitState.CLOSED;
   private static long lastFailureTime = 0;
   private static int failureCount = 0;
@@ -198,26 +200,22 @@ public class LoadTestClient {
   }
 
   private static boolean sendHttpRequest(String url, String method, String payload) {
-    Request request;
-    if (method.equals("POST")) {
-      RequestBody body =
-          RequestBody.create(payload, MediaType.get("application/json; charset=utf-8"));
-      request = new Request.Builder()
-          .url(url)
-          .post(body)
-          .build();
-    } else {
-      request = new Request.Builder()
-          .url(url)
-          .get()
-          .build();
-    }
-
     long start = System.currentTimeMillis();
-    try (Response response = client.newCall(request).execute()) {
+    try {
+      CloseableHttpResponse response;
+      if (method.equals("POST")) {
+        HttpPost post = new HttpPost(url);
+        post.setEntity(new StringEntity(payload));
+        post.setHeader("Content-type", "application/json");
+        response = client.execute(post);
+      } else {
+        HttpGet get = new HttpGet(url);
+        response = client.execute(get);
+      }
+
       long end = System.currentTimeMillis();
       long latency = end - start;
-      int responseCode = response.code();
+      int responseCode = response.getStatusLine().getStatusCode();
 
       if (responseCode == 200 || responseCode == 201) {
         responseTimes.add(new String[] {String.valueOf(start), method, String.valueOf(latency),
@@ -226,9 +224,13 @@ public class LoadTestClient {
 
         long completedSecond = (end - startTime) / 1000;
         throughput.computeIfAbsent(completedSecond, k -> new AtomicInteger(0)).incrementAndGet();
+        EntityUtils.consume(response.getEntity());
+        response.close();
         return true;
       } else {
         failedRequests.incrementAndGet();
+        EntityUtils.consume(response.getEntity());
+        response.close();
         return false;
       }
     } catch (IOException e) {
