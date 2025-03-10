@@ -35,6 +35,43 @@ The project is built with the following technologies:
 
    - **Rule-based**: Group by themes and limit X lines per poem. X could be a random number.
 
+## Client
+- Java 11 or higher
+- Gradle
+  
+### Building the Project
+
+To build the project, navigate to the `client` directory and run the following commands:
+
+```sh
+./gradlew clean build
+./gradlew shadowJar
+```
+The clean build command will clean the previous build artifacts and build the project. The shadowJar command will create a fat JAR file that includes all dependencies.
+
+### Running the Load Test
+To run the load test, use the following command:
+```sh
+java -jar build/libs/client-1.0-all.jar <threadGroupSize> <numThreadGroups> <delay> <IPAddr> [useCircuitBreaker]
+```
+
+### Parameters
+threadGroupSize: The number of threads in each thread group.
+numThreadGroups: The number of thread groups.
+delay: The delay between the start of each thread group in seconds.
+IPAddr: The IP address of the server to test.
+useCircuitBreaker (optional): Whether to use the circuit breaker feature (default is true).
+
+### Example
+```sh
+java -jar build/libs/client-1.0-all.jar 10 20 2 http://localhost:8080 true
+```
+
+This command will start the load test with 10 threads per group, 20 thread groups, a 2-second delay between each group, targeting the server at http://localhost:8080, and using the circuit breaker feature.
+
+### Results
+The load test results, including response times and throughput, will be written to a CSV file in the results directory. The file name will follow the pattern response_time_size-<threadGroupSize>_<numThreadGroups>_groups.csv.
+
 ## Declaimer
 The test data is:
 
