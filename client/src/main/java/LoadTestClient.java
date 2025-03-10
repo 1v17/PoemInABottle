@@ -30,17 +30,20 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
+import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.apache.http.util.EntityUtils;
 import org.json.JSONObject;
 
 public class LoadTestClient {
   public static final String FILE_PATH = "sonnets.txt";
   public static final String RESULT_PATH = "../results";
+  public static final int MAX_PER_ROUTE = 20;
+  public static final int MAX_TOTAL_CONN = 500;
   private static final int EXECUTOR_TIMEOUT_MIN = 30; // 30 minutes
   private static final int INIT_THREAD_COUNT = 10;
   private static final int INIT_REQUESTS_PER_THREAD = 100;
   private static final int REQUESTS_PER_THREAD = 1000;
-  private static final int MAX_FAILURES = 20;
+  private static final int MAX_FAILURES = 100;
   private static final int LATENCY_THRESHOLD_MS = 5000;
   private static final int COOLDOWN_PERIOD_MS = 5000;
   private static final CopyOnWriteArrayList<String> sonnetLines = new CopyOnWriteArrayList<>();
@@ -52,12 +55,21 @@ public class LoadTestClient {
   private static final Logger logger = Logger.getLogger(LoadTestClient.class.getName());
   private static final ConcurrentHashMap<Long, AtomicInteger> throughput =
       new ConcurrentHashMap<>();
-  private static final CloseableHttpClient client = HttpClients.createDefault();
+  private static final PoolingHttpClientConnectionManager connectionManager =
+      new PoolingHttpClientConnectionManager();
+  private static final CloseableHttpClient client = HttpClients.custom()
+      .setConnectionManager(connectionManager)
+      .build();
   private static CircuitState circuitState = CircuitState.CLOSED;
   private static long lastFailureTime = 0;
   private static int failureCount = 0;
   private static boolean useCircuitBreaker = true;
   private static long startTime;
+
+  static {
+    connectionManager.setMaxTotal(MAX_TOTAL_CONN);
+    connectionManager.setDefaultMaxPerRoute(MAX_PER_ROUTE);
+  }
 
   public static void main(String[] args) throws Exception {
     if (args.length < 4) {
@@ -201,8 +213,8 @@ public class LoadTestClient {
 
   private static boolean sendHttpRequest(String url, String method, String payload) {
     long start = System.currentTimeMillis();
+    CloseableHttpResponse response = null;
     try {
-      CloseableHttpResponse response;
       if (method.equals("POST")) {
         HttpPost post = new HttpPost(url);
         post.setEntity(new StringEntity(payload));
@@ -221,21 +233,25 @@ public class LoadTestClient {
         responseTimes.add(new String[] {String.valueOf(start), method, String.valueOf(latency),
             String.valueOf(responseCode)});
         handleCircuitBreakerOnSuccess(latency);
-
         long completedSecond = (end - startTime) / 1000;
         throughput.computeIfAbsent(completedSecond, k -> new AtomicInteger(0)).incrementAndGet();
         EntityUtils.consume(response.getEntity());
-        response.close();
         return true;
       } else {
         failedRequests.incrementAndGet();
         EntityUtils.consume(response.getEntity());
-        response.close();
         return false;
       }
     } catch (IOException e) {
       failedRequests.incrementAndGet();
       return false;
+    } finally {
+      if (response != null) {
+        try {
+          response.close();
+        } catch (IOException ignored) {
+        }
+      }
     }
   }
 
