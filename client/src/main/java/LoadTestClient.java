@@ -39,7 +39,8 @@ public class LoadTestClient {
   public static final String RESULT_PATH = "../results";
   public static final int MAX_PER_ROUTE = 20;
   public static final int MAX_TOTAL_CONN = 500;
-  private static final int EXECUTOR_TIMEOUT_MIN = 2; // 30 minutes TODO: Change time if necessary
+  private static final int INIT_EXECUTOR_TIMEOUT_MIN = 2;
+  private static final int EXECUTOR_TIMEOUT_MIN = 30; // 30 minutes - Change time if necessary
   private static final int INIT_THREAD_COUNT = 10;
   private static final int INIT_REQUESTS_PER_THREAD = 100;
   private static final int REQUESTS_PER_THREAD = 1000;
@@ -104,7 +105,8 @@ public class LoadTestClient {
         totalSuccessfulRequests += future.get();
       }
       executor.shutdown();
-      boolean initTerminated = executor.awaitTermination(Long.MAX_VALUE, TimeUnit.MILLISECONDS);
+      boolean initTerminated = executor.awaitTermination(
+          INIT_EXECUTOR_TIMEOUT_MIN, TimeUnit.MINUTES);
       if (!initTerminated) {
         System.out.println("Warning: Initialization phase not finished before timeout!");
         executor.shutdownNow(); // Force shutdown
@@ -153,6 +155,13 @@ public class LoadTestClient {
         } catch (Exception e) {
           System.err.println("Error: Task execution interrupted. " + e.getMessage());
         }
+      }
+
+      // close http client and shutdown executor
+      try {
+        client.close();
+      } catch (IOException e) {
+        System.err.println("Error closing HTTP client: " + e.getMessage());
       }
 
       boolean terminated = mainExecutor.awaitTermination(EXECUTOR_TIMEOUT_MIN, TimeUnit.MINUTES);
