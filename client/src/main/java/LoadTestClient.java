@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -71,7 +72,6 @@ public class LoadTestClient {
       for (int i = 0; i < 10; i++) {
         executor.execute(() -> sendRequests(ipAddr, INIT_REQUESTS_PER_THREAD));
       }
-      logThreadPoolStats(executor);
       executor.shutdown();
       boolean initTerminated = executor.awaitTermination(Long.MAX_VALUE, TimeUnit.MILLISECONDS);
       if (!initTerminated) {
@@ -85,14 +85,14 @@ public class LoadTestClient {
 
       ThreadPoolExecutor mainExecutor = (ThreadPoolExecutor) Executors.newCachedThreadPool();
       try {
+        ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
         for (int i = 0; i < numThreadGroups; i++) {
-          for (int j = 0; j < threadGroupSize; j++) {
-            mainExecutor.execute(() -> sendRequests(ipAddr, REQUESTS_PER_THREAD));
-          }
-          logThreadPoolStats(mainExecutor);
-          Thread.sleep(delay);
+          scheduler.schedule(() -> {
+            for (int j = 0; j < threadGroupSize; j++) {
+              mainExecutor.execute(() -> sendRequests(ipAddr, REQUESTS_PER_THREAD));
+            }
+          }, i * delay, TimeUnit.MILLISECONDS);
         }
-        mainExecutor.shutdown();
         boolean terminated = mainExecutor.awaitTermination(EXECUTOR_TIMEOUT_MIN, TimeUnit.MINUTES);
         if (!terminated) {
           System.out.println("Warning: Not all tasks finished before timeout!");
