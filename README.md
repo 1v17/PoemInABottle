@@ -55,6 +55,8 @@ To run the load test, use the following command:
 java -jar build/libs/client-1.0-all.jar <threadGroupSize> <numThreadGroups> <delay> <IPAddr> [useCircuitBreaker]
 ```
 
+**Note: the client is scheduled to shutdown after 30 minutes. If the you need less or more time, please change the EXECUTOR_TIMEOUT_MIN in the client.**
+
 ### Parameters
 threadGroupSize: The number of threads in each thread group.
 numThreadGroups: The number of thread groups.
