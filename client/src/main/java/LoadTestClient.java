@@ -218,18 +218,18 @@ public class LoadTestClient {
         long latency = end - start;
         int responseCode = response.code();
 
-        responseTimes.add(new String[] {String.valueOf(start), method, String.valueOf(latency),
-            String.valueOf(responseCode)});
-
-        // Calculate the second in which the request was completed
-        long completedSecond = (end - startTime) / 1000;
-        throughput.computeIfAbsent(completedSecond, k -> new AtomicInteger(0)).incrementAndGet();
-
         if (responseCode == 200 || responseCode == 201) {
+          responseTimes.add(new String[] {String.valueOf(start), method, String.valueOf(latency),
+              String.valueOf(responseCode)});
           handleCircuitBreakerOnSuccess(latency);
+
+          // Calculate the second in which the request was completed
+          long completedSecond = (end - startTime) / 1000;
+          throughput.computeIfAbsent(completedSecond, k -> new AtomicInteger(0)).incrementAndGet();
         } else {
           failedRequests.incrementAndGet();
         }
+        response.close(); // Ensure the response body is closed
       }
     });
   }
@@ -254,10 +254,10 @@ public class LoadTestClient {
   private static void generateReport(long startTime, long endTime, int threadGroupSize,
                                      int numThreadGroups) {
     long wallTime = (endTime - startTime) / 1000;
-    long totalRequests = responseTimes.size() + failedRequests.get();
-    double throughput = totalRequests / (double) wallTime;
     long successfulRequests = responseTimes.size();
     long failedRequestsCount = failedRequests.get();
+    double throughput = successfulRequests / (double) wallTime;
+
 
     System.out.println("Wall Time: " + wallTime + " seconds");
     System.out.printf("Throughput: %.2f requests/sec%n", throughput);
