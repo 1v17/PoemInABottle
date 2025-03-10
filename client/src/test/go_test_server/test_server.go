@@ -1,11 +1,8 @@
 package main
 
 import (
-	"context"
 	"log"
 	"net/http"
-	"sync"
-	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -26,8 +23,8 @@ Love alters not with his brief hours and weeks,
 But bears it out even to the edge of doom:
   If this be error and upon me proved,
   I never writ, nor no man ever loved.`
-	WORKER_COUNT  = 5
-	REQUEST_QUEUE = 100
+	WORKER_COUNT  = 500
+	REQUEST_QUEUE = 1000
 )
 
 var (
@@ -38,8 +35,8 @@ var (
 		"Beauty": {},
 		"Random": {},
 	}
-	sentenceQueue = make(chan Sentence, REQUEST_QUEUE)
-	wg            sync.WaitGroup
+	// sentenceQueue = make(chan Sentence, REQUEST_QUEUE)
+	// wg            sync.WaitGroup
 )
 
 type Sentence struct {
@@ -50,7 +47,7 @@ type Sentence struct {
 
 func main() {
 	// Start worker pool
-	startWorkerPool()
+	// startWorkerPool()
 
 	r := gin.Default()
 	setupRouter(r)
@@ -113,37 +110,38 @@ func postSentence(c *gin.Context) {
 	}
 
 	// Enqueue the sentence for background processing
-	select {
-	case sentenceQueue <- request:
-		c.JSON(http.StatusOK, gin.H{"msg": "Sentence queued for theme: " + request.Theme})
-	default:
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Server too busy, try again later"})
-	}
+	// select {
+	// case sentenceQueue <- request:
+	c.JSON(http.StatusOK, gin.H{"msg": "Sentence queued for theme: " + request.Theme})
+	// default:
+	// 	c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Server too busy, try again later"})
+	// }
 }
 
-func startWorkerPool() {
-	for range make([]struct{}, WORKER_COUNT) {
-		wg.Add(1)
-		go worker()
-	}
-}
+// func startWorkerPool() {
+// 	for range make([]struct{}, WORKER_COUNT) {
+// 		wg.Add(1)
+// 		go worker()
+// 	}
+// }
 
-func worker() {
-	defer wg.Done()
-	for sentence := range sentenceQueue {
-		processSentence(sentence)
-	}
-}
+// func worker() {
+// 	defer wg.Done()
+// 	for sentence := range sentenceQueue {
+// 		processSentence(sentence)
+// 	}
+// }
 
-func processSentence(sentence Sentence) {
-	_, cancel := context.WithTimeout(context.Background(), TIME_OUT_SEC*time.Second)
-	defer cancel()
+// func processSentence(sentence Sentence) {
+// 	_, cancel := context.WithTimeout(context.Background(), TIME_OUT_SEC*time.Second)
+// 	defer cancel()
 
-	// Simulate processing time
-	time.Sleep(time.Second * 1)
+// 	// Simulate processing time
+// 	// time.Sleep(time.Second * 1)
 
-	log.Printf("Processed sentence from Author %d under theme: %s\n", sentence.Author, sentence.Theme)
-}
+// 	// log.Printf("Processed sentence from Author %d under theme: %s\n",
+// 	//	 sentence.Author, sentence.Theme)
+// }
 
 func validateTheme(theme string) bool {
 	_, exists := validThemes[theme]
