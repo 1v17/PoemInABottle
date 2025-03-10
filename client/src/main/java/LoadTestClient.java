@@ -214,22 +214,25 @@ public class LoadTestClient {
 
       @Override
       public void onResponse(@NotNull Call call, @NotNull Response response) {
-        long end = System.currentTimeMillis();
-        long latency = end - start;
-        int responseCode = response.code();
+        try (Response res = response) {
+          long end = System.currentTimeMillis();
+          long latency = end - start;
+          int responseCode = res.code();
 
-        if (responseCode == 200 || responseCode == 201) {
-          responseTimes.add(new String[] {String.valueOf(start), method, String.valueOf(latency),
-              String.valueOf(responseCode)});
-          handleCircuitBreakerOnSuccess(latency);
+          if (responseCode == 200 || responseCode == 201) {
+            responseTimes.add(new String[] {String.valueOf(start), method, String.valueOf(latency),
+                String.valueOf(responseCode)});
+            handleCircuitBreakerOnSuccess(latency);
 
-          // Calculate the second in which the request was completed
-          long completedSecond = (end - startTime) / 1000;
-          throughput.computeIfAbsent(completedSecond, k -> new AtomicInteger(0)).incrementAndGet();
-        } else {
-          failedRequests.incrementAndGet();
+            long completedSecond = (end - startTime) / 1000;
+            throughput.computeIfAbsent(completedSecond, k -> new AtomicInteger(0))
+                .incrementAndGet();
+          } else {
+            failedRequests.incrementAndGet();
+          }
+        } catch (Exception e) {
+          System.err.println("Error processing response: " + e.getMessage());
         }
-        response.close(); // Ensure the response body is closed
       }
     });
   }
