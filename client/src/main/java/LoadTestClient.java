@@ -260,7 +260,8 @@ public class LoadTestClient {
             String.valueOf(responseCode)});
         handleCircuitBreakerOnSuccess(latency);
         long completedSecond = (end - startTime) / 1000;
-        throughput.computeIfAbsent(completedSecond, k -> new AtomicInteger(0)).incrementAndGet();
+        throughput.computeIfAbsent(completedSecond,
+            k -> new AtomicInteger(0)).incrementAndGet();
         EntityUtils.consume(response.getEntity());
         return true;
       } else {
