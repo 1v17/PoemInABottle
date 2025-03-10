@@ -94,7 +94,9 @@ public class LoadTestClient {
       try {
         ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
         for (int i = 0; i < numThreadGroups; i++) {
+          final int groupIndex = i;
           scheduler.schedule(() -> {
+            System.out.printf("Starting thread group %d at %d ms%n", groupIndex, System.currentTimeMillis() - startTime);
             for (int j = 0; j < threadGroupSize; j++) {
               mainExecutor.submit(() -> sendRequests(ipAddr, REQUESTS_PER_THREAD));
             }
