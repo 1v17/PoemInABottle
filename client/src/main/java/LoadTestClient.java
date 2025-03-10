@@ -91,7 +91,7 @@ public class LoadTestClient {
             for (int j = 0; j < threadGroupSize; j++) {
               mainExecutor.execute(() -> sendRequests(ipAddr, REQUESTS_PER_THREAD));
             }
-          }, i * delay, TimeUnit.MILLISECONDS);
+          }, (long) i * delay, TimeUnit.MILLISECONDS);
         }
         boolean terminated = mainExecutor.awaitTermination(EXECUTOR_TIMEOUT_MIN, TimeUnit.MINUTES);
         if (!terminated) {
@@ -218,9 +218,13 @@ public class LoadTestClient {
     long wallTime = (endTime - startTime) / 1000;
     long totalRequests = responseTimes.size() + failedRequests.get();
     double throughput = totalRequests / (double) wallTime;
+    long successfulRequests = responseTimes.size();
+    long failedRequestsCount = failedRequests.get();
 
     System.out.println("Wall Time: " + wallTime + " seconds");
     System.out.printf("Throughput: %.2f requests/sec%n", throughput);
+    System.out.println("Total Successful Requests: " + successfulRequests);
+    System.out.println("Total Failed Requests: " + failedRequestsCount);
 
     writeCsv(threadGroupSize, numThreadGroups);
     System.out.println("Response times written to CSV file.");
