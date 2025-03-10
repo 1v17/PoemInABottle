@@ -52,24 +52,24 @@ The clean build command will clean the previous build artifacts and build the pr
 ### Running the Load Test
 To run the load test, use the following command:
 ```sh
-java -jar build/libs/client-1.0-all.jar <threadGroupSize> <numThreadGroups> <delay> <IPAddr> [useCircuitBreaker]
+java -jar build/libs/client-1.0-all.jar <threadGroupSize> <numThreadGroups> <delay> <IPAddr> [-c <useCircuitBreaker>] [-e <executorTimeoutMin>]
 ```
 
-**Note: the client is scheduled to shutdown after 30 minutes. If the you need less or more time, please change the EXECUTOR_TIMEOUT_MIN in the client.**
 
 ### Parameters
 threadGroupSize: The number of threads in each thread group.
 numThreadGroups: The number of thread groups.
 delay: The delay between the start of each thread group in seconds.
 IPAddr: The IP address of the server to test.
-useCircuitBreaker (optional): Whether to use the circuit breaker feature (default is true).
+-c useCircuitBreaker (optional): Whether to use the circuit breaker feature (default is true).
+-e executorTimeoutMin (optional): The executor timeout in minutes (default is 30).
 
 ### Example
 ```sh
-java -jar build/libs/client-1.0-all.jar 10 20 2 http://localhost:8080 true
+java -jar build/libs/client-1.0-all.jar 10 20 2 http://localhost:8080 -c true -e 45
 ```
 
-This command will start the load test with 10 threads per group, 20 thread groups, a 2-second delay between each group, targeting the server at http://localhost:8080, and using the circuit breaker feature.
+This command will start the load test with 10 threads per group, 20 thread groups, a 2-second delay between each group, targeting the server at http://localhost:8080, using the circuit breaker feature, and setting the executor timeout to 45 minutes.
 
 ### Results
 The load test results, including response times and throughput, will be written to a CSV file in the results directory. The file name will follow the pattern response_time_size-<threadGroupSize>_<numThreadGroups>_groups.csv.
