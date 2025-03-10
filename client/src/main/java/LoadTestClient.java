@@ -150,14 +150,15 @@ public class LoadTestClient {
     for (int i = 0; i < numRequests; i++) {
       if (useCircuitBreaker && circuitState == CircuitState.OPEN
           && System.currentTimeMillis() - lastFailureTime <= COOLDOWN_PERIOD_MS) {
-        // Skip requests while circuit is open and cooldown has not elapsed
-        return;
+        // Skip only this iteration rather than returning and aborting all further requests.
+        continue;
       }
-
+  
+      // If cooldown has elapsed, attempt one request to test the waters.
       if (useCircuitBreaker && circuitState == CircuitState.OPEN) {
         circuitState = CircuitState.HALF_OPEN;
       }
-
+  
       sendPostRequest(ipAddr);
       sendGetRequest(ipAddr);
     }
