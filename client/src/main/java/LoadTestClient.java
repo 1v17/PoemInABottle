@@ -39,7 +39,7 @@ public class LoadTestClient {
   public static final String RESULT_PATH = "../results";
   public static final int MAX_PER_ROUTE = 20;
   public static final int MAX_TOTAL_CONN = 500;
-  private static final int EXECUTOR_TIMEOUT_MIN = 30; // 30 minutes
+  private static final int EXECUTOR_TIMEOUT_MIN = 2; // 30 minutes TODO: Change time if necessary
   private static final int INIT_THREAD_COUNT = 10;
   private static final int INIT_REQUESTS_PER_THREAD = 100;
   private static final int REQUESTS_PER_THREAD = 1000;
@@ -118,33 +118,50 @@ public class LoadTestClient {
 
       System.out.println("Initialization phase complete. Starting load test...");
 
+      // Reset counters for the main execution phase
+      responseTimes.clear();
+      failedRequests.set(0);
+
       startTime = System.currentTimeMillis(); // Initialize start time
 
+      // Main execution phase
       ThreadPoolExecutor mainExecutor = (ThreadPoolExecutor) Executors.newCachedThreadPool();
-      try {
-        ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
-        for (int i = 0; i < numThreadGroups; i++) {
-          final int groupIndex = i;
-          scheduler.schedule(() -> {
-            System.out.printf("Starting thread group %d at %d ms%n", groupIndex,
-                System.currentTimeMillis() - startTime);
-            for (int j = 0; j < threadGroupSize; j++) {
-              mainExecutor.submit(() -> sendRequests(ipAddr, REQUESTS_PER_THREAD));
-            }
-          }, (long) i * delay, TimeUnit.MILLISECONDS);
-        }
-        scheduler.shutdown();
-        boolean terminated = mainExecutor.awaitTermination(EXECUTOR_TIMEOUT_MIN, TimeUnit.MINUTES);
-        if (!terminated) {
-          System.out.println("Warning: Not all tasks finished before timeout!");
-          mainExecutor.shutdownNow(); // Force shutdown
-        }
-      } finally {
-        if (!mainExecutor.isTerminated()) {
-          mainExecutor.shutdownNow();
+      List<Future<Integer>> mainFutures = new ArrayList<>();
+      ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+      for (int i = 0; i < numThreadGroups; i++) {
+        final int groupIndex = i;
+        scheduler.schedule(() -> {
+          System.out.printf("Starting thread group %d at %d ms%n", groupIndex,
+              System.currentTimeMillis() - startTime);
+          for (int j = 0; j < threadGroupSize; j++) {
+            mainFutures.add(mainExecutor.submit(() -> sendRequests(ipAddr, REQUESTS_PER_THREAD)));
+          }
+        }, (long) i * delay, TimeUnit.MILLISECONDS);
+      }
+      scheduler.shutdown();
+      boolean schedulerTerminated = scheduler.awaitTermination(
+          EXECUTOR_TIMEOUT_MIN, TimeUnit.MINUTES);
+      if (!schedulerTerminated) {
+        System.out.println("Warning: Thread group scheduler did not finish before timeout!");
+        scheduler.shutdownNow(); // Force shutdown
+      }
+
+      // Wait for all tasks to complete
+      for (Future<Integer> future : mainFutures) {
+        try {
+          future.get();
+        } catch (Exception e) {
+          System.err.println("Error: Task execution interrupted. " + e.getMessage());
         }
       }
 
+      boolean terminated = mainExecutor.awaitTermination(EXECUTOR_TIMEOUT_MIN, TimeUnit.MINUTES);
+      if (!terminated) {
+        System.out.println("Warning: Not all tasks finished before timeout!");
+        mainExecutor.shutdownNow(); // Force shutdown
+      }
+
+      System.out.println("Load test complete. Generating report...");
       long endTime = System.currentTimeMillis();
       generateReport(startTime, endTime, threadGroupSize, numThreadGroups);
     } catch (InterruptedException e) {
