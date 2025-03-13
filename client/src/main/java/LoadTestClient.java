@@ -97,9 +97,9 @@ public class LoadTestClient {
 
     readSonnets();
 
-    ThreadPoolExecutor executor =
+    ThreadPoolExecutor initialExecutor =
         (ThreadPoolExecutor) Executors.newFixedThreadPool(INIT_THREAD_COUNT);
-    initializePhase(executor, ipAddr);
+    initializePhase(initialExecutor, ipAddr);
 
     logger.info("Initialization phase complete. Starting load test...");
 
