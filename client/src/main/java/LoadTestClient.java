@@ -156,13 +156,13 @@ public class LoadTestClient {
     for (int i = 0; i < 10; i++) {
       initFutures.add(executor.submit(() -> sendRequests(ipAddr, INIT_REQUESTS_PER_THREAD)));
     }
-    AtomicInteger totalSuccessfulRequests = new AtomicInteger(0);
+    AtomicInteger successfulRequests = new AtomicInteger(0);
     for (Future<Integer> future : initFutures) {
-      totalSuccessfulRequests.addAndGet(future.get());
+      successfulRequests.addAndGet(future.get());
     }
     shutdownExecutor(executor);
 
-    if (totalSuccessfulRequests.get() < 10 * INIT_REQUESTS_PER_THREAD) {
+    if (successfulRequests.get() < 10 * INIT_REQUESTS_PER_THREAD) {
       logger.warning(
           "Initialization phase did not receive enough successful responses. Aborting load test.");
       System.exit(1);
