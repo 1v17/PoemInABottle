@@ -210,13 +210,13 @@ public class LoadTestClient {
     }
   }
 
-  private static void shutdownExecutor(ThreadPoolExecutor mainExecutor)
+  private static void shutdownExecutor(ThreadPoolExecutor executor)
       throws InterruptedException {
-    mainExecutor.shutdown();
-    boolean terminated = mainExecutor.awaitTermination(executorTimeoutMin, TimeUnit.MINUTES);
+    executor.shutdown();
+    boolean terminated = executor.awaitTermination(executorTimeoutMin, TimeUnit.MINUTES);
     if (!terminated) {
       logger.info("Warning: Not all tasks finished before timeout!");
-      mainExecutor.shutdownNow(); // Force shutdown
+      executor.shutdownNow(); // Force shutdown
     }
   }
 
