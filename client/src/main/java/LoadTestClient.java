@@ -23,8 +23,11 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.logging.Level;
+import java.util.logging.ConsoleHandler;
+import java.util.logging.Handler;
+import java.util.logging.LogRecord;
 import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
 import java.util.stream.Collectors;
 
 import org.apache.commons.cli.CommandLine;
@@ -76,6 +79,20 @@ public class LoadTestClient {
   static {
     connectionManager.setMaxTotal(MAX_TOTAL_CONN);
     connectionManager.setDefaultMaxPerRoute(MAX_PER_ROUTE);
+  }
+
+  static {
+    Logger rootLogger = Logger.getLogger("");
+    for (Handler handler : rootLogger.getHandlers()) {
+        if (handler instanceof ConsoleHandler) {
+            handler.setFormatter(new SimpleFormatter() {
+                @Override
+                public synchronized String format(LogRecord record) {
+                    return String.format("%s%n", record.getMessage());
+                }
+            });
+        }
+    }
   }
 
   public static void main(String[] args) throws Exception {
@@ -177,8 +194,8 @@ public class LoadTestClient {
     for (int i = 0; i < numThreadGroups; i++) {
       final int groupIndex = i;
       scheduler.schedule(() -> {
-        logger.log(Level.INFO, "Starting thread group {0} at {1} ms", new Object[] {groupIndex,
-            System.currentTimeMillis() - startTime.get()});
+        logger.info(String.format("Starting thread group %d at %d ms", groupIndex,
+            System.currentTimeMillis() - startTime.get()));
         for (int j = 0; j < threadGroupSize; j++) {
           mainFutures.add(mainExecutor.submit(() -> sendRequests(ipAddr, REQUESTS_PER_THREAD)));
         }
@@ -346,10 +363,10 @@ public class LoadTestClient {
     long failedRequestsCount = failedRequests.get();
     double throughput = successfulRequests / (double) wallTime;
 
-    logger.log(Level.INFO, "Wall Time: {0} seconds", wallTime);
+    logger.info(String.format("Wall Time: %d seconds", wallTime));
     logger.info(String.format("Throughput: %.2f requests/sec%n", throughput));
-    logger.log(Level.INFO, "Total Successful Requests: {0}", successfulRequests);
-    logger.log(Level.INFO, "Total Failed Requests: {0}", failedRequestsCount);
+    logger.info(String.format("Total Successful Requests: %d", successfulRequests));
+    logger.info(String.format("Total Failed Requests: %d", failedRequestsCount));
 
     writeResponseTimesCsv(threadGroupSize, numThreadGroups);
     logger.info("Response times and throughput data written to CSV files.");
@@ -391,7 +408,7 @@ public class LoadTestClient {
         .collect(Collectors.toList());
 
     if (latencies.isEmpty()) {
-      logger.log(Level.INFO, "No {0} requests were made.", requestType);
+      logger.info(String.format("No %s requests were made.", requestType));
       return;
     }
 
@@ -401,12 +418,12 @@ public class LoadTestClient {
     long median = latencies.get(latencies.size() / 2);
     long p99 = latencies.get((int) (latencies.size() * 0.99));
 
-    logger.log(Level.INFO, "\n{0} Request Statistics:", requestType);
-    logger.log(Level.INFO, "Min: {0} ms", min);
-    logger.log(Level.INFO, "Max: {0} ms", max);
-    logger.log(Level.INFO, "Mean: {0} ms", mean);
-    logger.log(Level.INFO, "Median: {0} ms", median);
-    logger.log(Level.INFO, "P99: {0} ms", p99);
+    logger.info(String.format("\n%s Request Statistics:", requestType));
+    logger.info(String.format("Min: %d ms", min));
+    logger.info(String.format("Max: %d ms", max));
+    logger.info(String.format("Mean: %.2f ms", mean));
+    logger.info(String.format("Median: %d ms", median));
+    logger.info(String.format("P99: %d ms", p99));
   }
 
   private enum CircuitState { CLOSED, OPEN, HALF_OPEN }
