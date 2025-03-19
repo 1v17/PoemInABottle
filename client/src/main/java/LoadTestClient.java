@@ -23,8 +23,13 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.logging.ConsoleHandler;
+import java.util.logging.Handler;
+import java.util.logging.LogRecord;
 import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
 import java.util.stream.Collectors;
+
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.DefaultParser;
@@ -46,7 +51,6 @@ public class LoadTestClient {
   public static final String RESULT_PATH = "../results";
   public static final int MAX_PER_ROUTE = 20;
   public static final int MAX_TOTAL_CONN = 500;
-  private static final int INIT_EXECUTOR_TIMEOUT_MIN = 2;
   private static final int INIT_THREAD_COUNT = 10;
   private static final int INIT_REQUESTS_PER_THREAD = 100;
   private static final int REQUESTS_PER_THREAD = 1000;
@@ -77,6 +81,20 @@ public class LoadTestClient {
     connectionManager.setDefaultMaxPerRoute(MAX_PER_ROUTE);
   }
 
+  static {
+    Logger rootLogger = Logger.getLogger("");
+    for (Handler handler : rootLogger.getHandlers()) {
+        if (handler instanceof ConsoleHandler) {
+            handler.setFormatter(new SimpleFormatter() {
+                @Override
+                public synchronized String format(LogRecord record) {
+                    return String.format("%s%n", record.getMessage());
+                }
+            });
+        }
+    }
+  }
+
   public static void main(String[] args) throws Exception {
     CommandLine cmd = parseArguments(args);
 
@@ -91,16 +109,16 @@ public class LoadTestClient {
       executorTimeoutMin = Integer.parseInt(cmd.getOptionValue("e"));
     }
 
-    System.out.printf("Using circuit breaker: %b%n", useCircuitBreaker);
-    System.out.printf("Executor timeout: %d minutes%n", executorTimeoutMin);
+    logger.info(String.format("Using circuit breaker: %b%n", useCircuitBreaker));
+    logger.info(String.format("Executor timeout: %d minutes%n", executorTimeoutMin));
 
     readSonnets();
 
-    ThreadPoolExecutor executor =
+    ThreadPoolExecutor initialExecutor =
         (ThreadPoolExecutor) Executors.newFixedThreadPool(INIT_THREAD_COUNT);
-    initializePhase(executor, ipAddr);
+    initializePhase(initialExecutor, ipAddr);
 
-    System.out.println("Initialization phase complete. Starting load test...");
+    logger.info("Initialization phase complete. Starting load test...");
 
     // Reset counters for the main execution phase
     responseTimes.clear();
@@ -117,12 +135,13 @@ public class LoadTestClient {
 
     // Wait for all tasks to complete
     waitForTasksToComplete(mainFutures);
-
+    logger.info("All tasks completed.");
+    
     // Close HTTP client and shutdown executor
     closeHttpClient();
     shutdownExecutor(mainExecutor);
 
-    System.out.println("Load test complete. Generating report...");
+    logger.info("Load test complete. Generating report...");
     long endTime = System.currentTimeMillis();
     generateReport(startTime.get(), endTime, threadGroupSize, numThreadGroups);
   }
@@ -154,19 +173,14 @@ public class LoadTestClient {
     for (int i = 0; i < 10; i++) {
       initFutures.add(executor.submit(() -> sendRequests(ipAddr, INIT_REQUESTS_PER_THREAD)));
     }
-    AtomicInteger totalSuccessfulRequests = new AtomicInteger(0);
+    AtomicInteger successfulRequests = new AtomicInteger(0);
     for (Future<Integer> future : initFutures) {
-      totalSuccessfulRequests.addAndGet(future.get());
+      successfulRequests.addAndGet(future.get());
     }
-    executor.shutdown();
-    boolean initTerminated = executor.awaitTermination(INIT_EXECUTOR_TIMEOUT_MIN, TimeUnit.MINUTES);
-    if (!initTerminated) {
-      System.out.println("Warning: Initialization phase not finished before timeout!");
-      executor.shutdownNow(); // Force shutdown
-    }
+    shutdownExecutor(executor);
 
-    if (totalSuccessfulRequests.get() < 10 * INIT_REQUESTS_PER_THREAD) {
-      System.err.println(
+    if (successfulRequests.get() < 10 * INIT_REQUESTS_PER_THREAD) {
+      logger.warning(
           "Initialization phase did not receive enough successful responses. Aborting load test.");
       System.exit(1);
     }
@@ -180,8 +194,8 @@ public class LoadTestClient {
     for (int i = 0; i < numThreadGroups; i++) {
       final int groupIndex = i;
       scheduler.schedule(() -> {
-        System.out.printf("Starting thread group %d at %d ms%n", groupIndex,
-            System.currentTimeMillis() - startTime.get());
+        logger.info(String.format("Starting thread group %d at %d ms", groupIndex,
+            System.currentTimeMillis() - startTime.get()));
         for (int j = 0; j < threadGroupSize; j++) {
           mainFutures.add(mainExecutor.submit(() -> sendRequests(ipAddr, REQUESTS_PER_THREAD)));
         }
@@ -190,7 +204,7 @@ public class LoadTestClient {
     scheduler.shutdown();
     boolean schedulerTerminated = scheduler.awaitTermination(executorTimeoutMin, TimeUnit.MINUTES);
     if (!schedulerTerminated) {
-      System.out.println("Warning: Thread group scheduler did not finish before timeout!");
+      logger.warning("Warning: Thread group scheduler did not finish before timeout!");
       scheduler.shutdownNow(); // Force shutdown
     }
   }
@@ -200,7 +214,7 @@ public class LoadTestClient {
       try {
         future.get();
       } catch (Exception e) {
-        System.err.println("Error: Task execution interrupted. " + e.getMessage());
+        logger.warning(String.format("Error: Task execution interrupted. ", e.getMessage()));
       }
     }
   }
@@ -209,26 +223,27 @@ public class LoadTestClient {
     try {
       client.close();
     } catch (IOException e) {
-      System.err.println("Error closing HTTP client: " + e.getMessage());
+      logger.warning(String.format("Error closing HTTP client: ", e.getMessage()));
     }
   }
 
-  private static void shutdownExecutor(ThreadPoolExecutor mainExecutor)
+  private static void shutdownExecutor(ThreadPoolExecutor executor)
       throws InterruptedException {
-    boolean terminated = mainExecutor.awaitTermination(executorTimeoutMin, TimeUnit.MINUTES);
+    executor.shutdown();
+    boolean terminated = executor.awaitTermination(executorTimeoutMin, TimeUnit.MINUTES);
     if (!terminated) {
-      System.out.println("Warning: Not all tasks finished before timeout!");
-      mainExecutor.shutdownNow(); // Force shutdown
+      logger.info("Warning: Not all tasks finished before timeout!");
+      executor.shutdownNow(); // Force shutdown
     }
   }
 
-  private static void logThreadPoolStats(ThreadPoolExecutor executor) {
-    logger.info("\nThreadPool Stats: " +
-        "Pool Size: " + executor.getPoolSize() +
-        ", Active Threads: " + executor.getActiveCount() +
-        ", Completed Tasks: " + executor.getCompletedTaskCount() +
-        ", Task Count: " + executor.getTaskCount());
-  }
+  // private static void logThreadPoolStats(ThreadPoolExecutor executor) {
+  //   logger.info("\nThreadPool Stats: " +
+  //       "Pool Size: " + executor.getPoolSize() +
+  //       ", Active Threads: " + executor.getActiveCount() +
+  //       ", Completed Tasks: " + executor.getCompletedTaskCount() +
+  //       ", Task Count: " + executor.getTaskCount());
+  // }
 
   private static void readSonnets() throws IOException {
     try (BufferedReader br = new BufferedReader(new InputStreamReader(
@@ -299,11 +314,10 @@ public class LoadTestClient {
       long latency = end - start;
       int responseCode = response.getStatusLine().getStatusCode();
 
-      if (responseCode == 200 || responseCode == 201) {
+      if (responseCode >= 200 && responseCode < 300) {
         responseTimes.add(new String[] {String.valueOf(start), method, String.valueOf(latency),
             String.valueOf(responseCode)});
         handleCircuitBreakerOnSuccess(latency);
-        long completedSecond = (end - startTime.get()) / 1000;
         EntityUtils.consume(response.getEntity());
         return true;
       } else {
@@ -311,7 +325,8 @@ public class LoadTestClient {
         EntityUtils.consume(response.getEntity());
         return false;
       }
-    } catch (IOException e) {
+    } catch (Exception e) {
+      System.err.println("Error sending request: " + e.getMessage());
       failedRequests.incrementAndGet();
       return false;
     } finally {
@@ -330,13 +345,13 @@ public class LoadTestClient {
       lastFailureTime = System.currentTimeMillis();
       if (failureCount >= MAX_FAILURES) {
         circuitState = CircuitState.OPEN;
-        System.out.println("Circuit breaker tripped! Pausing requests.");
+        logger.info("Circuit breaker tripped! Pausing requests.");
       }
     } else {
       failureCount = 0; // Reset failures on success
       if (useCircuitBreaker && circuitState == CircuitState.HALF_OPEN) {
         circuitState = CircuitState.CLOSED;
-        System.out.println("Circuit breaker recovered!");
+        logger.info("Circuit breaker recovered!");
       }
     }
   }
@@ -348,13 +363,13 @@ public class LoadTestClient {
     long failedRequestsCount = failedRequests.get();
     double throughput = successfulRequests / (double) wallTime;
 
-    System.out.println("Wall Time: " + wallTime + " seconds");
-    System.out.printf("Throughput: %.2f requests/sec%n", throughput);
-    System.out.println("Total Successful Requests: " + successfulRequests);
-    System.out.println("Total Failed Requests: " + failedRequestsCount);
+    logger.info(String.format("Wall Time: %d seconds", wallTime));
+    logger.info(String.format("Throughput: %.2f requests/sec%n", throughput));
+    logger.info(String.format("Total Successful Requests: %d", successfulRequests));
+    logger.info(String.format("Total Failed Requests: %d", failedRequestsCount));
 
     writeResponseTimesCsv(threadGroupSize, numThreadGroups);
-    System.out.println("Response times and throughput data written to CSV files.");
+    logger.info("Response times and throughput data written to CSV files.");
 
     calculateStats("Overall", new ArrayList<>(responseTimes));
     calculateStats("POST", filterResponseTimes("POST"));
@@ -388,12 +403,12 @@ public class LoadTestClient {
 
   private static void calculateStats(String requestType, List<String[]> filteredResponseTimes) {
     List<Long> latencies = filteredResponseTimes.stream()
-        .map(line -> Long.parseLong(line[2]))
+        .map(line -> Long.valueOf(line[2]))
         .sorted()
         .collect(Collectors.toList());
 
     if (latencies.isEmpty()) {
-      System.out.println("No " + requestType + " requests were made.");
+      logger.info(String.format("No %s requests were made.", requestType));
       return;
     }
 
@@ -403,12 +418,12 @@ public class LoadTestClient {
     long median = latencies.get(latencies.size() / 2);
     long p99 = latencies.get((int) (latencies.size() * 0.99));
 
-    System.out.println("\n" + requestType + " Request Statistics:");
-    System.out.printf("Min: %d ms%n", min);
-    System.out.printf("Max: %d ms%n", max);
-    System.out.printf("Mean: %.2f ms%n", mean);
-    System.out.printf("Median: %d ms%n", median);
-    System.out.printf("P99: %d ms%n", p99);
+    logger.info(String.format("\n%s Request Statistics:", requestType));
+    logger.info(String.format("Min: %d ms", min));
+    logger.info(String.format("Max: %d ms", max));
+    logger.info(String.format("Mean: %.2f ms", mean));
+    logger.info(String.format("Median: %d ms", median));
+    logger.info(String.format("P99: %d ms", p99));
   }
 
   private enum CircuitState { CLOSED, OPEN, HALF_OPEN }
