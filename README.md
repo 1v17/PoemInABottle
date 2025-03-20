@@ -82,7 +82,7 @@ The test data is:
 ## To-Dos
 By 2025/3/10:
 - [x] Prepare testing data (lines, poems, etc.) - JH
-- [ ] Client
+- [x] Client
 - [ ] API Services - JH
     - [x] POST /sentence
     - [x] POST /sentence/:theme
@@ -95,7 +95,7 @@ By 2025/3/10:
 By 2025/3/21:
 - [ ] LB
 - [ ] Database
-- [ ] Message Queuing
+- [ ] Message Queuing - JH SQS done
 
 By 2025/3/30:
 - [ ] Testing
