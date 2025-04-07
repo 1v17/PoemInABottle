@@ -8,9 +8,9 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
-	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/gin-gonic/gin"
@@ -40,7 +40,7 @@ type Sentence struct {
 	Theme   string `json:"theme"`
 }
 
-type PoemResponse struct {
+type Poem struct {
 	Authors  []int  `json:"authors"`
 	Contents string `json:"contents"`
 	Theme    string `json:"theme"`
@@ -55,8 +55,9 @@ func main() {
 
 	r := gin.Default()
 	publisher.setupRouter(r)
-	log.Println("Server started on :8080")
+
 	r.Run(":8080")
+	log.Println("Server started on :8080")
 }
 
 func (p *Publisher) initDB() {
@@ -85,7 +86,8 @@ func (p *Publisher) initDB() {
 
 func (p *Publisher) initSQS() {
 	sess, err := session.NewSession(&aws.Config{
-		Region: aws.String(os.Getenv("AWS_REGION")),
+		Region:      aws.String(os.Getenv("AWS_REGION")),
+		Credentials: credentials.NewSharedCredentials("", "user1"),
 	})
 	if err != nil {
 		log.Fatalf("Failed to create AWS session: %v", err)
@@ -122,7 +124,6 @@ func (p *Publisher) getPoemByTheme(c *gin.Context) {
 
 func (p *Publisher) getPoem(c *gin.Context) {
 	themes := []string{"Love", "Death", "Nature", "Beauty", "Random"}
-	rand.Seed(time.Now().UnixNano())
 	randomTheme := themes[rand.Intn(len(themes))]
 
 	poem, err := p.queryPoemByTheme(randomTheme)
@@ -174,7 +175,7 @@ func validateTheme(theme string) bool {
 	return exists
 }
 
-func (p *Publisher) queryPoemByTheme(theme string) (*PoemResponse, error) {
+func (p *Publisher) queryPoemByTheme(theme string) (*Poem, error) {
 	query := "SELECT Content, AuthorIDs FROM " + theme + " ORDER BY TimeStamp DESC LIMIT 1"
 	row := p.db.QueryRow(query)
 
@@ -189,7 +190,7 @@ func (p *Publisher) queryPoemByTheme(theme string) (*PoemResponse, error) {
 		return nil, err
 	}
 
-	return &PoemResponse{
+	return &Poem{
 		Authors:  authors,
 		Contents: content,
 		Theme:    theme,
