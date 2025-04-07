@@ -181,3 +181,6 @@ bin/
 
 ### Binary files ###
 client/src/test/go_test_server/test_server
+
+### Environment ###
+*.env
