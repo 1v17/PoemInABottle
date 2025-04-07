@@ -109,8 +109,7 @@ Building an application on AWS can be cost-effective—**if** we choose services
 2. **Network & Security**  
    - Private subnets for DB, IAM roles to limit permissions, encryption at rest and in transit.
 3. **Cost Alerting**  
-   - Set CloudWatch budgets or AWS Budgets to notify we if monthly costs exceed thresholds.
-
+   - Set CloudWatch budgets or AWS Budgets to notify us if monthly costs exceed thresholds.
 # 4. Example Cost Evaluation Flow
 
 1. **Estimates**:  
