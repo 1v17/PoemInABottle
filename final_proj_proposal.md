@@ -29,11 +29,7 @@ Building an application on AWS can be cost-effective—**if** we choose services
    - Use a small instance (e.g., db.t3.micro) for stable, moderate traffic with relational workloads.  
    - Aurora Serverless v2 provides an auto-scaling relational option if we need SQL but want usage-based pricing.
 
-3. **Amazon S3**  
-   - Very cheap for object storage.  
-   - Ideal for static files, large text data, logs, or backups.
-
-4. **MongoDB on a Small EC2**  
+3. **MongoDB on a Small EC2**  
    - If we need document-based storage but want to avoid large management fees, a small T-class EC2 instance can be cheaper than a managed solution if our traffic is modest.
 
 ## 2.3 Messaging & Asynchronous Processing
