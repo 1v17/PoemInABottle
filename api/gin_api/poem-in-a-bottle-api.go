@@ -9,21 +9,27 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/gin-gonic/gin"
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/rabbitmq/amqp091-go"
 )
 
 type Publisher struct {
-	db        *sql.DB
-	sqsClient *sqs.SQS
-	queueURL  string
+	db         *sql.DB
+	rabbitConn *amqp091.Connection
+	rabbitCh   *amqp091.Channel
+	queueNames map[string]string
 }
 
-// set cannot be constant
+const (
+	QUEUE_PREFIX = "poem_"
+	QUEUE_LOVE   = QUEUE_PREFIX + "love"
+	QUEUE_DEATH  = QUEUE_PREFIX + "death"
+	QUEUE_NATURE = QUEUE_PREFIX + "nature"
+	QUEUE_BEAUTY = QUEUE_PREFIX + "beauty"
+	QUEUE_RANDOM = QUEUE_PREFIX + "random"
+)
+
 var (
 	validThemes = map[string]struct{}{
 		"Love":   {},
@@ -51,7 +57,9 @@ func main() {
 	publisher.initDB()
 	defer publisher.db.Close()
 
-	publisher.initSQS()
+	publisher.initRabbitMQ()
+	defer publisher.rabbitConn.Close()
+	defer publisher.rabbitCh.Close()
 
 	r := gin.Default()
 	publisher.setupRouter(r)
@@ -68,7 +76,6 @@ func (p *Publisher) initDB() {
 	dbHost := os.Getenv("DB_HOST")
 	dbName := os.Getenv("DB_NAME")
 
-	// Check for missing environment variables
 	if dbUser == "" || dbPassword == "" || dbPort == "" || dbHost == "" || dbName == "" {
 		log.Fatalf("One or more required environment variables are missing: DB_USER, DB_PASSWORD, DB_PORT, DB_HOST, DB_NAME")
 	}
@@ -84,19 +91,44 @@ func (p *Publisher) initDB() {
 	}
 }
 
-func (p *Publisher) initSQS() {
-	sess, err := session.NewSession(&aws.Config{
-		Region:      aws.String(os.Getenv("AWS_REGION")),
-		Credentials: credentials.NewSharedCredentials("", "user1"),
-	})
-	if err != nil {
-		log.Fatalf("Failed to create AWS session: %v", err)
+func (p *Publisher) initRabbitMQ() {
+	var err error
+	rabbitURL := os.Getenv("RABBITMQ_URL")
+	if rabbitURL == "" {
+		log.Fatalf("RABBITMQ_URL environment variable is not set")
 	}
 
-	p.sqsClient = sqs.New(sess)
-	p.queueURL = os.Getenv("SQS_QUEUE_URL")
-	if p.queueURL == "" {
-		log.Fatalf("SQS_QUEUE_URL environment variable is not set")
+	p.rabbitConn, err = amqp091.Dial(rabbitURL)
+	if err != nil {
+		log.Fatalf("Failed to connect to RabbitMQ: %v", err)
+	}
+
+	p.rabbitCh, err = p.rabbitConn.Channel()
+	if err != nil {
+		log.Fatalf("Failed to create RabbitMQ channel: %v", err)
+	}
+
+	// Declare queues for each theme
+	p.queueNames = map[string]string{
+		"Love":   QUEUE_LOVE,
+		"Death":  QUEUE_DEATH,
+		"Nature": QUEUE_NATURE,
+		"Beauty": QUEUE_BEAUTY,
+		"Random": QUEUE_RANDOM,
+	}
+
+	for _, queue := range p.queueNames {
+		_, err := p.rabbitCh.QueueDeclare(
+			queue,
+			true,  // durable
+			false, // auto-delete
+			false, // exclusive
+			false, // no-wait
+			nil,   // arguments
+		)
+		if err != nil {
+			log.Fatalf("Failed to declare RabbitMQ queue: %v", err)
+		}
 	}
 }
 
@@ -161,7 +193,7 @@ func (p *Publisher) postSentence(c *gin.Context) {
 		return
 	}
 
-	err := p.sendToSQS(request)
+	err := p.publishToRabbitMQ(request)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to queue sentence"})
 		return
@@ -197,15 +229,26 @@ func (p *Publisher) queryPoemByTheme(theme string) (*Poem, error) {
 	}, nil
 }
 
-func (p *Publisher) sendToSQS(sentence Sentence) error {
+func (p *Publisher) publishToRabbitMQ(sentence Sentence) error {
+	queueName, exists := p.queueNames[sentence.Theme]
+	if !exists {
+		return fmt.Errorf("no queue found for theme: %s", sentence.Theme)
+	}
+
 	messageBody, err := json.Marshal(sentence)
 	if err != nil {
 		return err
 	}
 
-	_, err = p.sqsClient.SendMessage(&sqs.SendMessageInput{
-		QueueUrl:    aws.String(p.queueURL),
-		MessageBody: aws.String(string(messageBody)),
-	})
+	err = p.rabbitCh.Publish(
+		"",        // exchange
+		queueName, // routing key
+		false,     // mandatory
+		false,     // immediate
+		amqp091.Publishing{
+			ContentType: "application/json",
+			Body:        messageBody,
+		},
+	)
 	return err
 }
