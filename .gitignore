@@ -211,3 +211,10 @@ client/src/test/go_test_server/test_server
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
 replay_pid*
+
+# Java class files
+*.class
+# Java archive files
+*.jar
+# Java target folder
+*/*/target
