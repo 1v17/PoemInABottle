@@ -18,7 +18,7 @@ import (
 const (
 	PREFETCH_COUNT = 10
 	MIN_LINE_COUNT = 3
-	MAX_LINE_COUNT = 100
+	MAX_LINE_COUNT = 4
 	QUEUE_PREFIX   = "poem_"
 	QUEUE_LOVE     = QUEUE_PREFIX + "love"
 	QUEUE_DEATH    = QUEUE_PREFIX + "death"
@@ -29,19 +29,19 @@ const (
 
 var (
 	queueNames = map[string]string{
-		"Love":   QUEUE_LOVE,
-		"Death":  QUEUE_DEATH,
-		"Nature": QUEUE_NATURE,
-		"Beauty": QUEUE_BEAUTY,
-		"Random": QUEUE_RANDOM,
+		"love":   QUEUE_LOVE,
+		"death":  QUEUE_DEATH,
+		"nature": QUEUE_NATURE,
+		"beauty": QUEUE_BEAUTY,
+		"random": QUEUE_RANDOM,
 	}
 
 	tableNames = map[string]string{
-		"Love":   "Love",
-		"Death":  "Death",
-		"Nature": "Nature",
-		"Beauty": "Beauty",
-		"Random": "Random",
+		"love":   "love",
+		"death":  "death",
+		"nature": "nature",
+		"beauty": "beauty",
+		"random": "random",
 	}
 )
 

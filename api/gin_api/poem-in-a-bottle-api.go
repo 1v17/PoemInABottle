@@ -32,11 +32,11 @@ const (
 
 var (
 	queueNames = map[string]string{
-		"Love":   QUEUE_LOVE,
-		"Death":  QUEUE_DEATH,
-		"Nature": QUEUE_NATURE,
-		"Beauty": QUEUE_BEAUTY,
-		"Random": QUEUE_RANDOM,
+		"love":   QUEUE_LOVE,
+		"death":  QUEUE_DEATH,
+		"nature": QUEUE_NATURE,
+		"beauty": QUEUE_BEAUTY,
+		"random": QUEUE_RANDOM,
 	}
 )
 
@@ -155,7 +155,10 @@ func (p *Publisher) getPoemByTheme(c *gin.Context) {
 }
 
 func (p *Publisher) getPoem(c *gin.Context) {
-	themes := []string{"Love", "Death", "Nature", "Beauty", "Random"}
+	themes := make([]string, 0, len(queueNames))
+	for theme := range queueNames {
+		themes = append(themes, theme)
+	}
 	randomTheme := themes[rand.Intn(len(themes))]
 
 	poem, err := p.queryPoemByTheme(randomTheme)
@@ -185,7 +188,7 @@ func (p *Publisher) postSentence(c *gin.Context) {
 	}
 
 	if request.Theme == "" {
-		request.Theme = "Random"
+		request.Theme = "random"
 	}
 
 	if !validateTheme(request.Theme) {
