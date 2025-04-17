@@ -73,7 +73,7 @@ public class LoadTestClient {
   private static CircuitState circuitState = CircuitState.CLOSED;
   private static long lastFailureTime = 0;
   private static int failureCount = 0;
-  private static boolean useCircuitBreaker = true;
+  private static boolean useCircuitBreaker = false;
   private static int executorTimeoutMin = 30; // 30 minutes - Change time if necessary
 
   static {
