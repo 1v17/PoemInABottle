@@ -16,7 +16,7 @@ import com.google.gson.JsonParser;
 public class AlbumCreateHandler implements RequestHandler<APIGatewayV2HTTPEvent, APIGatewayV2HTTPResponse> {
     private static final Gson gson = new Gson();
     private static final AmazonSQS sqsClient = AmazonSQSClientBuilder.defaultClient();
-    private static final String AWS_REGION = System.getenv("AWS_REGION") != null ? System.getenv("AWS_REGION") : "us-east-1";
+    private static final String AWS_REGION = System.getenv("AWS_REGION") != null ? System.getenv("AWS_REGION") : "us-west-2";
     private static final String SQS_QUEUE_URL = "https://sqs.us-west-2.amazonaws.com/243870365946/albumQueue";
 
     @Override

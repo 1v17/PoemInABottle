@@ -6,7 +6,7 @@ public class DBCPDataSource {
     // get values from environment variables
     private static final String HOST_NAME = System.getProperty("PostgreSQL_IP_ADDRESS", System.getenv("PostgreSQL_IP_ADDRESS"));
     private static final String PORT = System.getProperty("PostgreSQL_PORT", System.getenv("PostgreSQL_PORT"));
-    private static final String DATABASE = "postgres";
+    private static final String DATABASE = System.getProperty("PostgreSQL_DB_NAME", System.getenv("PostgreSQL_DB_NAME"));
     private static final String USERNAME = System.getProperty("DB_USERNAME", System.getenv("DB_USERNAME"));
     private static final String PASSWORD = System.getProperty("DB_PASSWORD", System.getenv("DB_PASSWORD"));
 
