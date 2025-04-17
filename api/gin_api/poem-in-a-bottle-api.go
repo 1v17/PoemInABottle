@@ -11,14 +11,14 @@ import (
 
 	"github.com/gin-gonic/gin"
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/rabbitmq/amqp091-go"
+	"github.com/joho/godotenv"
+	"github.com/streadway/amqp"
 )
 
 type Publisher struct {
 	db         *sql.DB
-	rabbitConn *amqp091.Connection
-	rabbitCh   *amqp091.Channel
-	queueNames map[string]string
+	rabbitConn *amqp.Connection
+	rabbitCh   *amqp.Channel
 }
 
 const (
@@ -31,12 +31,12 @@ const (
 )
 
 var (
-	validThemes = map[string]struct{}{
-		"Love":   {},
-		"Death":  {},
-		"Nature": {},
-		"Beauty": {},
-		"Random": {},
+	queueNames = map[string]string{
+		"Love":   QUEUE_LOVE,
+		"Death":  QUEUE_DEATH,
+		"Nature": QUEUE_NATURE,
+		"Beauty": QUEUE_BEAUTY,
+		"Random": QUEUE_RANDOM,
 	}
 )
 
@@ -47,9 +47,9 @@ type Sentence struct {
 }
 
 type Poem struct {
-	Authors  []int  `json:"authors"`
-	Contents string `json:"contents"`
-	Theme    string `json:"theme"`
+	Authors []int  `json:"authors"`
+	Content string `json:"content"`
+	Theme   string `json:"theme"`
 }
 
 func main() {
@@ -92,32 +92,32 @@ func (p *Publisher) initDB() {
 }
 
 func (p *Publisher) initRabbitMQ() {
-	var err error
-	rabbitURL := os.Getenv("RABBITMQ_URL")
-	if rabbitURL == "" {
-		log.Fatalf("RABBITMQ_URL environment variable is not set")
+
+	loadEnvErr := godotenv.Load()
+	if loadEnvErr != nil {
+		log.Fatalf("Error loading .env file")
+	}
+	username := os.Getenv("RABBITMQ_USER")
+	password := os.Getenv("RABBITMQ_PASSWORD")
+	host := os.Getenv("RABBITMQ_HOST")
+	port := os.Getenv("RABBITMQ_PORT")
+
+	log.Printf("Connecting to RabbitMQ at %s:%s with username %s", host, port, username)
+
+	var connectionErr error
+	p.rabbitConn, connectionErr = amqp.Dial(fmt.Sprintf("amqp://%s:%s@%s:%s/",
+		username, password, host, port,
+	))
+	if connectionErr != nil {
+		log.Fatalf("Failed to connect to RabbitMQ: %v", connectionErr)
 	}
 
-	p.rabbitConn, err = amqp091.Dial(rabbitURL)
-	if err != nil {
-		log.Fatalf("Failed to connect to RabbitMQ: %v", err)
+	p.rabbitCh, connectionErr = p.rabbitConn.Channel()
+	if connectionErr != nil {
+		log.Fatalf("Failed to create RabbitMQ channel: %v", connectionErr)
 	}
 
-	p.rabbitCh, err = p.rabbitConn.Channel()
-	if err != nil {
-		log.Fatalf("Failed to create RabbitMQ channel: %v", err)
-	}
-
-	// Declare queues for each theme
-	p.queueNames = map[string]string{
-		"Love":   QUEUE_LOVE,
-		"Death":  QUEUE_DEATH,
-		"Nature": QUEUE_NATURE,
-		"Beauty": QUEUE_BEAUTY,
-		"Random": QUEUE_RANDOM,
-	}
-
-	for _, queue := range p.queueNames {
+	for _, queue := range queueNames {
 		_, err := p.rabbitCh.QueueDeclare(
 			queue,
 			true,  // durable
@@ -203,12 +203,12 @@ func (p *Publisher) postSentence(c *gin.Context) {
 }
 
 func validateTheme(theme string) bool {
-	_, exists := validThemes[theme]
+	_, exists := queueNames[theme]
 	return exists
 }
 
 func (p *Publisher) queryPoemByTheme(theme string) (*Poem, error) {
-	query := "SELECT Content, AuthorIDs FROM " + theme + " ORDER BY TimeStamp DESC LIMIT 1"
+	query := fmt.Sprintf("SELECT Content, AuthorIDs FROM %s ORDER BY TimeStamp DESC LIMIT 1", theme)
 	row := p.db.QueryRow(query)
 
 	var content string
@@ -223,14 +223,14 @@ func (p *Publisher) queryPoemByTheme(theme string) (*Poem, error) {
 	}
 
 	return &Poem{
-		Authors:  authors,
-		Contents: content,
-		Theme:    theme,
+		Authors: authors,
+		Content: content,
+		Theme:   theme,
 	}, nil
 }
 
 func (p *Publisher) publishToRabbitMQ(sentence Sentence) error {
-	queueName, exists := p.queueNames[sentence.Theme]
+	queueName, exists := queueNames[sentence.Theme]
 	if !exists {
 		return fmt.Errorf("no queue found for theme: %s", sentence.Theme)
 	}
@@ -245,7 +245,7 @@ func (p *Publisher) publishToRabbitMQ(sentence Sentence) error {
 		queueName, // routing key
 		false,     // mandatory
 		false,     // immediate
-		amqp091.Publishing{
+		amqp.Publishing{
 			ContentType: "application/json",
 			Body:        messageBody,
 		},
