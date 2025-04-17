@@ -59,7 +59,7 @@ public class LoadTestClient {
   private static final int COOLDOWN_PERIOD_MS = 5000;
   private static final CopyOnWriteArrayList<String> sonnetLines = new CopyOnWriteArrayList<>();
   private static final Set<String> THEMES = Collections.synchronizedSet(
-      new HashSet<>(Arrays.asList("", "Love", "Death", "Nature", "Beauty")));
+      new HashSet<>(Arrays.asList("", "love", "death", "nature", "beauty")));
   private static final ConcurrentLinkedQueue<String[]> responseTimes =
       new ConcurrentLinkedQueue<>();
   private static final AtomicInteger failedRequests = new AtomicInteger(0);
