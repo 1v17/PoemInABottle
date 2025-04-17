@@ -18,7 +18,7 @@ import (
 const (
 	PREFETCH_COUNT = 10
 	MIN_LINE_COUNT = 3
-	MAX_LINE_COUNT = 4
+	MAX_LINE_COUNT = 100
 	QUEUE_PREFIX   = "poem_"
 	QUEUE_LOVE     = QUEUE_PREFIX + "love"
 	QUEUE_DEATH    = QUEUE_PREFIX + "death"
