@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	_ "github.com/go-sql-driver/mysql"
@@ -69,6 +70,11 @@ func main() {
 }
 
 func (p *Publisher) initDB() {
+	loadEnvErr := godotenv.Load()
+	if loadEnvErr != nil {
+		log.Fatalf("Error loading .env file")
+	}
+
 	var err error
 	dbUser := os.Getenv("DB_USER")
 	dbPassword := os.Getenv("DB_PASSWORD")
@@ -139,7 +145,7 @@ func (p *Publisher) setupRouter(r *gin.Engine) {
 }
 
 func (p *Publisher) getPoemByTheme(c *gin.Context) {
-	theme := c.Param("theme")
+	theme := strings.ToLower(c.Param("theme"))
 	if !validateTheme(theme) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid theme"})
 		return
@@ -163,7 +169,7 @@ func (p *Publisher) getPoem(c *gin.Context) {
 
 	poem, err := p.queryPoemByTheme(randomTheme)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch poem"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch poem with theme " + randomTheme})
 		return
 	}
 
