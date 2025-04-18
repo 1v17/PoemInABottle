@@ -1,7 +1,8 @@
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.List;
+import java.util.Random;
 
+import com.amazonaws.services.dynamodbv2.document.Item;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPEvent;
@@ -10,16 +11,21 @@ import com.amazonaws.services.sqs.AmazonSQS;
 import com.amazonaws.services.sqs.AmazonSQSClientBuilder;
 import com.amazonaws.services.sqs.model.SendMessageRequest;
 import com.google.gson.Gson;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
-public class SentencePostPoemGetHandler implements RequestHandler<APIGatewayV2HTTPEvent, APIGatewayV2HTTPResponse> {
+public class PostSentenceGetPoemHandler implements RequestHandler<APIGatewayV2HTTPEvent, APIGatewayV2HTTPResponse> {
     private static final Gson gson = new Gson();
     private static final AmazonSQS sqsClient = AmazonSQSClientBuilder.defaultClient();
     private static final String AWS_REGION = System.getenv("AWS_REGION") != null ? System.getenv("AWS_REGION") : "us-west-2";
     private static final String SQS_QUEUE_URL = System.getenv("SQS_QUEUE_URL");
-    private static final PoemDao dao = new PoemDao();
-    private static final List<String> VALID_THEMES = Arrays.asList("random", "love", "death", "nature", "beauty");
+    
+    private final SentenceDao sentenceDao;
+    
+    public PostSentenceGetPoemHandler() {
+        this.sentenceDao = new SentenceDao();
+    }
 
     @Override
     public APIGatewayV2HTTPResponse handleRequest(APIGatewayV2HTTPEvent input, Context context) {
@@ -64,6 +70,9 @@ public class SentencePostPoemGetHandler implements RequestHandler<APIGatewayV2HT
                 ? bodyJson.get("theme").getAsString().trim().toLowerCase()
                 : "random";
 
+        // Validate theme
+        theme = sentenceDao.validateTheme(theme);
+
         // Create message in JSON format
         JsonObject jsonObject = new JsonObject();
         jsonObject.addProperty("author", author);
@@ -73,10 +82,10 @@ public class SentencePostPoemGetHandler implements RequestHandler<APIGatewayV2HT
 
         // Send message to FIFO SQS queue with MessageGroupId based on theme
         SendMessageRequest sendMessageRequest = new SendMessageRequest()
-                .withQueueUrl(SQS_QUEUE_URL) // Ensure this is a FIFO queue URL
+                .withQueueUrl(SQS_QUEUE_URL)
                 .withMessageBody(message)
-                .withMessageGroupId(theme) // Use theme as the MessageGroupId
-                .withMessageDeduplicationId(author + "-" + System.currentTimeMillis()); // Unique deduplication ID
+                .withMessageGroupId(theme)
+                .withMessageDeduplicationId(author + "-" + System.currentTimeMillis());
         sqsClient.sendMessage(sendMessageRequest);
 
         // Create response
@@ -95,33 +104,54 @@ public class SentencePostPoemGetHandler implements RequestHandler<APIGatewayV2HT
             }
         }
         
-        // Validate theme
-        if (!VALID_THEMES.contains(theme)) {
-            theme = "random";
+        // Validate theme using the DAO
+        theme = sentenceDao.validateTheme(theme);
+        
+        // Generate random number n between 3 and 14 inclusive
+        int n = 3 + new Random().nextInt(12);
+        context.getLogger().log("Getting " + n + " oldest sentences with theme: " + theme);
+        
+        // Query DynamoDB for n oldest sentences by theme using the DAO
+        List<Item> items = sentenceDao.getOldestSentencesByTheme(theme, n, context);
+        
+        if (items.isEmpty()) {
+            return createErrorResponse(404, "No sentences found for theme: " + theme);
         }
         
-        // Get random poem by theme
-        context.getLogger().log("Getting random poem with theme: " + theme);
-        Poem poem = dao.getRandomPoemByTheme(theme);
+        // Create poem from sentences
+        int[] authors = new int[items.size()];
+        StringBuilder contentBuilder = new StringBuilder();
         
-        if (poem == null) {
-            return createErrorResponse(404, "No poems found for theme: " + theme);
+        for (int i = 0; i < items.size(); i++) {
+            Item item = items.get(i);
+            authors[i] = item.getInt("author");
+            contentBuilder.append(item.getString("content")).append("\n");
         }
-
+        
+        // Delete sentences from DynamoDB using the DAO
+        boolean deletionSuccess = sentenceDao.deleteSentences(items, context);
+        if (!deletionSuccess) {
+            context.getLogger().log("Warning: Failed to delete some sentences");
+        }
+        
+        // Create response
         APIGatewayV2HTTPResponse response = new APIGatewayV2HTTPResponse();
         response.setStatusCode(200);
         
-        // Create poem response
+        // Format poem response
         JsonObject poemJson = new JsonObject();
-        poemJson.addProperty("theme", poem.getTheme());
-        poemJson.addProperty("contents", poem.getContents());
+        poemJson.addProperty("theme", theme);
+        poemJson.addProperty("contents", contentBuilder.toString().trim());
         
         // Add authors array
-        JsonObject responseJson = new JsonObject();
-        responseJson.add("poem", poemJson);
-        
+        JsonArray authorsArray = new JsonArray();
+        for (int author : authors) {
+            authorsArray.add(author);
+        }
+        poemJson.add("authors", authorsArray);
+
         // Set response body
-        response.setBody(gson.toJson(responseJson));
+        response.setBody(gson.toJson(poemJson));
         return response;
     }
 

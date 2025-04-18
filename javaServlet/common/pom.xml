@@ -15,10 +15,29 @@
             <artifactId>aws-java-sdk-dynamodb</artifactId>
             <version>1.12.562</version>
         </dependency>
+        <!-- AWS Lambda Core dependencies -->
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-lambda-java-core</artifactId>
+            <version>1.2.2</version>
+        </dependency>
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-lambda-java-events</artifactId>
+            <version>3.11.1</version>
+        </dependency>
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-java-sdk-sqs</artifactId>
+            <version>1.12.782</version>
+        </dependency>
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-lambda-java-log4j2</artifactId>
+            <version>1.5.1</version>
+        </dependency>
 
         <!-- https://mvnrepository.com/artifact/org.apache.commons/commons-dbcp2 -->
-
-
         <dependency>
             <groupId>com.google.code.gson</groupId>
             <artifactId>gson</artifactId>
