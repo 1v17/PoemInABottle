@@ -4,8 +4,8 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>cs6650-hw</groupId>
-    <artifactId>hw8</artifactId>
+    <groupId>cs6650-final-project</groupId>
+    <artifactId>Poem-In-A-Bottle</artifactId>
     <version>1.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
@@ -39,12 +39,6 @@
             <version>4.0.1</version>
             <scope>provided</scope>
         </dependency>
-        
-        <dependency>
-            <groupId>org.postgresql</groupId>
-            <artifactId>postgresql</artifactId>
-            <version>42.5.0</version>
-        </dependency>
 
         <dependency>
             <groupId>org.apache.commons</groupId>
@@ -59,17 +53,11 @@
         </dependency>
 
         <dependency>
-            <groupId>com.rabbitmq</groupId>
-            <artifactId>amqp-client</artifactId>
-            <version>5.13.0</version>
+            <groupId>cs6650-final-project</groupId>
+            <artifactId>Poem-In-A-Bottle-common</artifactId>
+            <version>1.0</version>
         </dependency>
 
-        <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <version>4.13.2</version>
-            <scope>test</scope>
-        </dependency>
     </dependencies>
 
     <build>
