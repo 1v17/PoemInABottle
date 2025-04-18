@@ -8,8 +8,7 @@ import (
 )
 
 const (
-	TIME_OUT_SEC = 5
-	FIXED_POEM   = `Let me not to the marriage of true minds
+	FIXED_POEM = `Let me not to the marriage of true minds
 Admit impediments, love is not love
 Which alters when it alteration finds,
 Or bends with the remover to remove.
@@ -23,8 +22,6 @@ Love alters not with his brief hours and weeks,
 But bears it out even to the edge of doom:
   If this be error and upon me proved,
   I never writ, nor no man ever loved.`
-	WORKER_COUNT  = 500
-	REQUEST_QUEUE = 1000
 )
 
 var (
@@ -35,8 +32,6 @@ var (
 		"Beauty": {},
 		"Random": {},
 	}
-	// sentenceQueue = make(chan Sentence, REQUEST_QUEUE)
-	// wg            sync.WaitGroup
 )
 
 type Sentence struct {
@@ -68,18 +63,11 @@ func getPoemByTheme(c *gin.Context) {
 		return
 	}
 
-	// Simulate processing time
-	// time.Sleep(time.Second * 1)
-
-	// Send the response directly (no goroutine)
 	c.JSON(http.StatusOK, gin.H{"poem": FIXED_POEM})
 }
 
 func getPoem(c *gin.Context) {
-	// Simulate processing time
-	// time.Sleep(time.Second * 1)
 
-	// Send the response directly (no goroutine)
 	c.JSON(http.StatusOK, gin.H{"poem": FIXED_POEM})
 }
 
@@ -109,39 +97,8 @@ func postSentence(c *gin.Context) {
 		return
 	}
 
-	// Enqueue the sentence for background processing
-	// select {
-	// case sentenceQueue <- request:
 	c.JSON(http.StatusOK, gin.H{"msg": "Sentence queued for theme: " + request.Theme})
-	// default:
-	// 	c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Server too busy, try again later"})
-	// }
 }
-
-// func startWorkerPool() {
-// 	for range make([]struct{}, WORKER_COUNT) {
-// 		wg.Add(1)
-// 		go worker()
-// 	}
-// }
-
-// func worker() {
-// 	defer wg.Done()
-// 	for sentence := range sentenceQueue {
-// 		processSentence(sentence)
-// 	}
-// }
-
-// func processSentence(sentence Sentence) {
-// 	_, cancel := context.WithTimeout(context.Background(), TIME_OUT_SEC*time.Second)
-// 	defer cancel()
-
-// 	// Simulate processing time
-// 	// time.Sleep(time.Second * 1)
-
-// 	// log.Printf("Processed sentence from Author %d under theme: %s\n",
-// 	//	 sentence.Author, sentence.Theme)
-// }
 
 func validateTheme(theme string) bool {
 	_, exists := validThemes[theme]

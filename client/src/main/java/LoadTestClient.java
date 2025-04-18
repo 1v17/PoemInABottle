@@ -59,7 +59,7 @@ public class LoadTestClient {
   private static final int COOLDOWN_PERIOD_MS = 5000;
   private static final CopyOnWriteArrayList<String> sonnetLines = new CopyOnWriteArrayList<>();
   private static final Set<String> THEMES = Collections.synchronizedSet(
-      new HashSet<>(Arrays.asList("", "Love", "Death", "Nature", "Beauty")));
+      new HashSet<>(Arrays.asList("", "love", "death", "nature", "beauty")));
   private static final ConcurrentLinkedQueue<String[]> responseTimes =
       new ConcurrentLinkedQueue<>();
   private static final AtomicInteger failedRequests = new AtomicInteger(0);
@@ -73,7 +73,7 @@ public class LoadTestClient {
   private static CircuitState circuitState = CircuitState.CLOSED;
   private static long lastFailureTime = 0;
   private static int failureCount = 0;
-  private static boolean useCircuitBreaker = true;
+  private static boolean useCircuitBreaker = false;
   private static int executorTimeoutMin = 30; // 30 minutes - Change time if necessary
 
   static {

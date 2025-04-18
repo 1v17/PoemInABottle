@@ -61,7 +61,7 @@ threadGroupSize: The number of threads in each thread group.
 numThreadGroups: The number of thread groups.
 delay: The delay between the start of each thread group in seconds.
 IPAddr: The IP address of the server to test.
--c useCircuitBreaker (optional): Whether to use the circuit breaker feature (default is true).
+-c useCircuitBreaker (optional): Whether to use the circuit breaker feature (default is false).
 -e executorTimeoutMin (optional): The executor timeout in minutes (default is 30).
 
 ### Example
