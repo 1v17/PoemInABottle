@@ -2,7 +2,7 @@
 ## Description
 Poem In A Bottle is a distributed system where users contribute poetic lines, which are dynamically combined into collaborative poems. Users can submit lines to thematic "bottles," ensuring coherence in style and theme.
 
-The backend, built with Go Gin and MongoDB, is hosted on AWS and incorporates Kafka for message queuing, Kubernetes for orchestration, and Redis for caching. An ELB efficiently distributes traffic across multiple instances, ensuring scalability and resilience. Poem In A Bottle transforms fragmented thoughts into shared poetic expressions, fostering creativity through decentralized collaboration. The user will get a random completed poem from the server. 
+The backend, built with Go and DynamoDB / MySQL, is hosted on AWS and incorporates RabbitMQ for message queuing, AWS ELB for orchestration, and Redis for caching. An ELB efficiently distributes traffic across multiple instances, ensuring scalability and resilience. Poem In A Bottle transforms fragmented thoughts into shared poetic expressions, fostering creativity through decentralized collaboration. The user will get a random completed poem from the server. 
  
 ## Architecture
 The project is built with the following technologies:
@@ -12,19 +12,19 @@ The project is built with the following technologies:
  
 2. **API and Worker Services**:
 
-   - **Go Gin Microservices**: Split your application into different services: 
+   - **Go Gin / Gorilla Microservices**: Split your application into different services: 
    - **API Gateway**: Handles user requests (submitting lines, fetching poems, etc.). 
    - **Poem Aggregator**: Gathers and assembles poems from submitted lines.
 
 3. **Message Queue for Asynchronous Processing**:
 
-   - **Kafka (or AWS SQS/Kinesis)**: Since poem formation is an async task, use Kafka for event-driven architecture: 
-        - When a user submits a line (with or without a theme), publish it to a Kafka topic. 
-        - A consumer service listens to this topic and processes lines (e.g., queues them for poem formation). 
+   - **RabbitMQ**: Since poem formation is an async task, use RabbitMQ for event-driven architecture: 
+        - When a user submits a line (with or without a theme), publish it to a queue. 
+        - A consumer service listens to this topic and processes lines. 
  
 4. **Database and Caching**:
 
-   - **MongoDB**: Store user-submitted lines, completed poems, and metadata. 
+   - **DynamoDB / MySQL**: Store user-submitted lines, completed poems, and metadata. 
    - **Redis**: Recently finished poems. (evaluate with and without cache)
  
 5. **Kubernetes for Scalability**:
@@ -61,7 +61,7 @@ threadGroupSize: The number of threads in each thread group.
 numThreadGroups: The number of thread groups.
 delay: The delay between the start of each thread group in seconds.
 IPAddr: The IP address of the server to test.
--c useCircuitBreaker (optional): Whether to use the circuit breaker feature (default is true).
+-c useCircuitBreaker (optional): Whether to use the circuit breaker feature (default is false).
 -e executorTimeoutMin (optional): The executor timeout in minutes (default is 30).
 
 ### Example
@@ -80,7 +80,7 @@ The test data is:
 1. [William Shakespeare's sonnets](/resources/154_Sonnets_Shakespeare.txt), a collection of 154 poems written in the late 16th century during the English Renaissance. Each sonnet consists of 14 lines, with a rhyme scheme of love, beauty, time, and mortality. We collected and cleaned the data from [Project Gutenberg](https://www.gutenberg.org/ebooks/1041), a digital library of free eBooks. The sonnets are in the public domain, and we are using them for educational purposes.
 
 ## To-Dos
-By 2025/3/10:
+By 2025/4/7:
 - [x] Prepare testing data (lines, poems, etc.) - JH
 - [x] Client
 - [ ] API Services - JH
@@ -92,10 +92,10 @@ By 2025/3/10:
 - [ ] Poem Aggregator Service
 - [ ] GitHub Actions for CI/CD - JH
 
-By 2025/3/21:
+By 2025/4/17:
 - [ ] LB
 - [ ] Database
 - [ ] Message Queuing - JH SQS done
 
-By 2025/3/30:
-- [ ] Testing
+By 2025/4/24:
+- [ ] Testing and report

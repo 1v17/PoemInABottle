@@ -184,7 +184,7 @@ client/src/test/go_test_server/test_server
 
 
 ### dotenv ###
-.env
+*.env
 
 ### Java ###
 # Compiled class file
@@ -211,6 +211,11 @@ client/src/test/go_test_server/test_server
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
 replay_pid*
+
+# binary files
+aggregator/consumer
+api/gin_api/api
+
 
 # Java class files
 *.class
