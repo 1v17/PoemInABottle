@@ -176,24 +176,22 @@ func pollQueueAndSend() {
 			continue
 		}
 		if len(msgs.Messages) == 0 {
-			// Nothing to process
 			continue
 		}
 
-		// Group messages by their MessageGroupId
+		// Group messages by MessageGroupId
 		grouped := make(map[string][]*sqs.Message)
 		for _, m := range msgs.Messages {
 			groupId := *m.Attributes[sqs.MessageSystemAttributeNameMessageGroupId]
 			grouped[groupId] = append(grouped[groupId], m)
 		}
 
-		// For each group that has at least 3 messages, print and delete exactly 3
+		// For each group that has at least 3 messages, process and delete exactly 3
 		for groupId, msgGroup := range grouped {
 			if len(msgGroup) < 3 {
 				continue
 			}
 
-			// Take just the first 3
 			toProcess := msgGroup[:3]
 
 			// Convert SQS messages to sentence objects
@@ -201,9 +199,11 @@ func pollQueueAndSend() {
 			var entries []*sqs.DeleteMessageBatchRequestEntry
 			for _, m := range toProcess {
 				var s sentence
-				json.Unmarshal([]byte(*m.Body), &s)
+				if err := json.Unmarshal([]byte(*m.Body), &s); err != nil {
+					log.Printf("Error unmarshaling SQS message: %v", err)
+					continue
+				}
 				sentences = append(sentences, s)
-
 				entries = append(entries, &sqs.DeleteMessageBatchRequestEntry{
 					Id:            m.MessageId,
 					ReceiptHandle: m.ReceiptHandle,
@@ -215,8 +215,36 @@ func pollQueueAndSend() {
 				fmt.Printf("Author=%d Theme=%s Content=%s\n", s.Author, s.Theme, s.Content)
 			}
 
-			// Delete the 3 messages just processed
-			_, err := sqsClient.DeleteMessageBatch(&sqs.DeleteMessageBatchInput{
+			// Aggregate the three sentences into one poem
+			var p poem
+			p.Authors = []int{
+				sentences[0].Author,
+				sentences[1].Author,
+				sentences[2].Author,
+			}
+			p.Contents = sentences[0].Content + "\n" + sentences[1].Content + "\n" + sentences[2].Content
+			p.Theme = sentences[0].Theme
+
+			// Store the poem into DynamoDB
+			av, err := dynamodbattribute.MarshalMap(p)
+			if err != nil {
+				log.Printf("Failed to marshal poem for DynamoDB: %v", err)
+				continue
+			}
+
+			tableName := "poem-in-a-bottle"
+			_, err = svc.PutItem(&dynamodb.PutItemInput{
+				Item:      av,
+				TableName: aws.String(tableName),
+			})
+			if err != nil {
+				log.Printf("Got error calling PutItem: %v", err)
+				continue
+			}
+			log.Printf("Successfully stored poem (theme=%s) in %s", p.Theme, tableName)
+
+			// Delete the 3 processed messages
+			_, err = sqsClient.DeleteMessageBatch(&sqs.DeleteMessageBatchInput{
 				QueueUrl: &queueURL,
 				Entries:  entries,
 			})

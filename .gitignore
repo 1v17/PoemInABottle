@@ -215,3 +215,11 @@ replay_pid*
 # binary files
 aggregator/consumer
 api/gin_api/api
+
+
+# Java class files
+*.class
+# Java archive files
+*.jar
+# Java target folder
+*/*/target
