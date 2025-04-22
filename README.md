@@ -2,38 +2,37 @@
 ## Description
 Poem In A Bottle is a distributed system where users contribute poetic lines, which are dynamically combined into collaborative poems. Users can submit lines to thematic "bottles," ensuring coherence in style and theme.
 
-The backend, built with Go / Java and DynamoDB / MySQL, is hosted on AWS and incorporates RabbitMQ /SQS for message queuing. Poem In A Bottle transforms fragmented thoughts into shared poetic expressions, fostering creativity through decentralized collaboration. The user will get a random completed poem from the server. 
+The backend is hosted on AWS and transforms fragmented thoughts into shared poetic expressions, fostering creativity through decentralized collaboration. The user will get a random completed poem from the server.
  
 ## Architecture
-The project is built with the following technologies:
-1. **Load Balancing**:
+We offer two distinct architecture implementations:
+### 1. EC2 + RabbitMQ + RDS MySQL
 
-    AWS ELB (Elastic Load Balancer): Distribute incoming requests across multiple Go Gin instances running on EC2 or inside a Kubernetes cluster. (adjust the policies) 
- 
-2. **API and Worker Services**:
+   - **API Server**: Written in Go Gin, handles both GET and POST requests
+     - GET requests directly query the MySQL database
+     - POST requests are sent to RabbitMQ queue
 
-   - **Go Gin / Gorilla Microservices**: Split your application into different services: 
-   - **API Gateway**: Handles user requests (submitting lines, fetching poems, etc.). 
-   - **Poem Aggregator**: Gathers and assembles poems from submitted lines.
+   - **Consumer**: Aggregates sentences into poems and writes them to MySQL database
+   - **Database**: RDS MySQL stores the completed poems
+   - **Deployment**: API, RabbitMQ, and consumer can all be hosted on the same EC2 instance for cost efficiency, or separated for scalability
 
-3. **Message Queue for Asynchronous Processing**:
+### 2. Lambda + SQS + DynamoDB
 
-   - **RabbitMQ**: Since poem formation is an async task, use RabbitMQ for event-driven architecture: 
-        - When a user submits a line (with or without a theme), publish it to a queue. 
-        - A consumer service listens to this topic and processes lines. 
- 
-4. **Database and Caching**:
+   - **API Server**: Java-based API hosted on AWS Lambda, handles both GET and POST requests
 
-   - **DynamoDB / MySQL**: Store user-submitted lines, completed poems, and metadata. 
-   - **Redis**: Recently finished poems. (evaluate with and without cache)
- 
-5. **Kubernetes for Scalability**:
+      - GET requests directly query DynamoDB, aggregate sentences into poems, and delete used sentences
+      - POST requests send sentences to SQS queue
 
-   - **EKS (Elastic Kubernetes Service)**: Deploy and scale your microservices dynamically. Kafka and Redis can also be deployed within the cluster. 
- 
-6. **Poem Generation Strategy**:
 
-   - **Rule-based**: Group by themes and limit X lines per poem. X could be a random number.
+   - **Consumer**: Processes messages from SQS and writes sentences to DynamoDB
+   - **Database**: DynamoDB stores individual sentences before they're used in poems
+
+#### Poem Generation Strategy
+
+Rule-based: Group lines by themes and limit X lines per poem
+X is randomly determined between 3 and 14 lines per poem
+
+This distributed architecture ensures efficient handling of submissions while enabling dynamic poem creation through asynchronous processing.
 
 ## Client
 - Java 11 or higher
@@ -217,26 +216,4 @@ To test the Lambda function, you can use the following command:
    ```
 
 ## Declaimer
-The test data is:
-
-1. [William Shakespeare's sonnets](/resources/154_Sonnets_Shakespeare.txt), a collection of 154 poems written in the late 16th century during the English Renaissance. Each sonnet consists of 14 lines, with a rhyme scheme of love, beauty, time, and mortality. We collected and cleaned the data from [Project Gutenberg](https://www.gutenberg.org/ebooks/1041), a digital library of free eBooks. The sonnets are in the public domain, and we are using them for educational purposes.
-
-## To-Dos
-By 2025/4/7:
-- [x] Prepare testing data (lines, poems, etc.) - JH
-- [x] Client
-- [x] API Services - JH
-    - [x] POST /sentence
-    - [x] POST /sentence/:theme
-    - [x] GET /poem
-    - [x] GET /poem/:theme
-    - [x] AWS Lambda for serverless functions
-- [x] Poem Aggregator Service
-
-By 2025/4/17:
-- [ ] LB
-- [x] Database
-- [x] Message Queuing - JH SQS done
-
-By 2025/4/24:
-- [ ] Testing and report
+The test data is [William Shakespeare's sonnets](/resources/154_Sonnets_Shakespeare.txt), a collection of 154 poems written in the late 16th century during the English Renaissance. Each sonnet consists of 14 lines, with a rhyme scheme of love, beauty, time, and mortality. We collected and cleaned the data from [Project Gutenberg](https://www.gutenberg.org/ebooks/1041), a digital library of free eBooks. The sonnets are in the public domain, and we are using them for educational purposes.
