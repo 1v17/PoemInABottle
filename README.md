@@ -2,7 +2,7 @@
 ## Description
 Poem In A Bottle is a distributed system where users contribute poetic lines, which are dynamically combined into collaborative poems. Users can submit lines to thematic "bottles," ensuring coherence in style and theme.
 
-The backend, built with Go and DynamoDB / MySQL, is hosted on AWS and incorporates RabbitMQ for message queuing, AWS ELB for orchestration, and Redis for caching. An ELB efficiently distributes traffic across multiple instances, ensuring scalability and resilience. Poem In A Bottle transforms fragmented thoughts into shared poetic expressions, fostering creativity through decentralized collaboration. The user will get a random completed poem from the server. 
+The backend, built with Go / Java and DynamoDB / MySQL, is hosted on AWS and incorporates RabbitMQ /SQS for message queuing. Poem In A Bottle transforms fragmented thoughts into shared poetic expressions, fostering creativity through decentralized collaboration. The user will get a random completed poem from the server. 
  
 ## Architecture
 The project is built with the following technologies:
