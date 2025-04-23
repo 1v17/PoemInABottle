@@ -64,8 +64,16 @@ For similar applications, serverless is the optimal choice for new projects with
 
 ## 8. Future Considerations
 
-1. Monitor evolving pricing models for both architectural approaches
-2. Consider multi-cloud strategies for risk mitigation
-3. Evaluate serverless offerings beyond AWS (Azure, Google Cloud)
-4. Explore event-driven architecture patterns regardless of infrastructure choices
-5. Balance vendor lock-in concerns against operational advantages
+### 8.1 Enhance poem storage in Lambda implementation
+
+The current Lambda implementation has a significant limitation: poems are generated on-the-fly and not persisted, while the source sentences are deleted after use. This approach is problematic as it doesn't preserve the creative content users contribute to the system. Future versions should implement a comprehensive data persistence strategy where both individual sentences and completed poems are stored in DynamoDB. This enhancement would enable powerful features such as allowing users to view all poems containing their contributions, tracking poem popularity metrics, and implementing a more robust history of user interactions. The data model would need to be extended to maintain relationships between sentences, poems, and user contributions, potentially using GSIs (Global Secondary Indexes) to efficiently query these relationships without compromising performance.
+
+### 8.2 Monitor evolving pricing models for both architectural approaches
+
+Cloud service providers frequently update their pricing structures and introduce new cost optimization options. AWS and other vendors are continuously refining their serverless and traditional infrastructure pricing models in response to market demands and competition. We should establish a regular review process for cloud costs and keep abreast of new instance types, serverless pricing tiers, and reserved capacity options. Because what appears cost-effective today may not remain so in the future.
+
+### 8.3 Evaluate serverless offerings beyond AWS (Microsoft Azure, Google Cloud)
+
+While AWS pioneered many serverless concepts, Microsoft Azure and Google Cloud have developed competitive and sometimes more cost-effective serverless ecosystems. Azure Functions offers tight integration with the broader Microsoft ecosystem, while Google Cloud Functions provides excellent performance characteristics for certain workloads. Each platform offers unique advantages in terms of cold start performance, maximum execution duration, and integration capabilities. Conducting cross-platform comparisons specific to the application's requirements may reveal more suitable serverless environments beyond AWS.
+
+
