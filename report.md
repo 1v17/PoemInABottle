@@ -65,11 +65,11 @@ This architecture embraces a fully serverless approach:
 
 To understand the financial implications of each approach, we analyzed AWS cost estimates at three different traffic levels:
 
-| 1 EC2+RabbitMQ+RDS (Monthly) | 3 EC2+RabbitMQ+RDS (Monthly) |
-| ---------------------------- | ---------------------------- |
-| $32.67                       | $39.97                       |
-| $32.67                       | $39.97                       |
-| $32.67                       | $39.97                       |
+| Daily Requests | Lambda+SQS+DynamoDB (Monthly) | 1 EC2+RabbitMQ+RDS (Monthly) | 3 EC2+RabbitMQ+RDS (Monthly) |
+| -------------- | ----------------------------- | ---------------------------- | ---------------------------- |
+| 30,000         | $2.79                         | $32.67                       | $39.97                       |
+| 300,000        | $27.70                        | $32.67                       | $39.97                       |
+| 400,000        | $39.84                        | $32.67                       | $39.97                       |
 
 
 | **N (Number of Requests)** | Items    | Sub-Item                 | Monthly Cost in USD |
