@@ -65,46 +65,92 @@ This architecture embraces a fully serverless approach:
 
 To understand the financial implications of each approach, we analyzed AWS cost estimates at three different traffic levels:
 
-| Daily Requests | Lambda+SQS+DynamoDB (Monthly) | 1 EC2+RabbitMQ+RDS (Monthly) | 3 EC2+RabbitMQ+RDS (Monthly) |
-| -------------- | ----------------------------- | ---------------------------- | ---------------------------- |
-| 30,000         | $2.79                         | $32.67                       | $39.97                       |
-| 300,000        | $27.70                        | $32.67                       | $39.97                       |
-| 400,000        | $39.84                        | $32.67                       | $39.97                       |
+| 1 EC2+RabbitMQ+RDS (Monthly) | 3 EC2+RabbitMQ+RDS (Monthly) |
+| ---------------------------- | ---------------------------- |
+| $32.67                       | $39.97                       |
+| $32.67                       | $39.97                       |
+| $32.67                       | $39.97                       |
 
 
-|      |      |      |      |
-| ---- | ---- | ---- | ---- |
-|      |      |      |      |
-|      |      |      |      |
-|      |      |      |      |
-|      |      |      |      |
-|      |      |      |      |
-|      |      |      |      |
-|      |      |      |      |
-|      |      |      |      |
-|      |      |      |      |
-|      |      |      |      |
-|      |      |      |      |
-|      |      |      |      |
-|      |      |      |      |
-|      |      |      |      |
-|      |      |      |      |
-|      |      |      |      |
-|      |      |      |      |
-|      |      |      |      |
-|      |      |      |      |
-|      |      |      |      |
-|      |      |      |      |
-|      |      |      |      |
-|      |      |      |      |
-|      |      |      |      |
-
+| **N (Number of Requests)** | Items    | Sub-Item                 | Monthly Cost in USD |
+| -------------------------- | -------- | ------------------------ | ------------------- |
+|                            | Lambda   | Lambda w/ Functional URL | 1.04                |
+|                            |          | Lambda for SQS to DB     | 0.52                |
+|                            | SQS      |                          | 0.23                |
+|                            | DynamoDB | DB for Sentences         | 0.5                 |
+|                            |          | DB for Poems             | 0.5                 |
+| **30,000**                 | Sum      |                          | 2.79                |
+|                            | Lambda   | Lambda w/ Functional URL | 12.11               |
+|                            |          | Lambda for SQS to DB     | 5.29                |
+|                            | SQS      |                          | 2.28                |
+|                            | DynamoDB | DB for Sentences         | 4.01                |
+|                            |          | DB for Poems             | 4.01                |
+| **300,000**                | Sum      |                          | 27.7                |
+|                            | Lambda   | Lambda w/ Functional URL | 15.72               |
+|                            |          | Lambda for SQS to DB     | 6.85                |
+|                            | SQS      |                          | 5.93                |
+|                            | DynamoDB | DB for Sentences         | 5.19                |
+|                            |          | DB for Poems             | 5.19                |
+| **390,000**                | Sum      |                          | 38.88               |
+|                            | Lambda   | Lambda w/ Functional URL | 16.13               |
+|                            |          | Lambda for SQS to DB     | 7.01                |
+|                            | SQS      |                          | 6.08                |
+|                            | DynamoDB | DB for Sentences         | 5.31                |
+|                            |          | DB for Poems             | 5.31                |
+| **400,000**                | Sum      |                          | 39.84               |
 
 > Note: The EC2-based solution would likely require scaling beyond a single t2.micro instance at higher traffic level.
 
+![lambda-price-prediction](/graphs/lambda-price-prediction.png)
+
+### 3.1 Cost Implications
+
+The serverless architecture demonstrates a clear cost advantage at low traffic levels, costing only 8.5% of the traditional architecture ($2.79 vs $32.67 monthly). This is due to the pay-per-use model that eliminates costs when the application is idle.
+
+As traffic increases, the cost gap narrows. At medium traffic levels, the serverless approach costs 84.8% of the traditional architecture. At high traffic levels, the serverless approach becomes 19% more expensive.
+
+This demonstrates the classic serverless pricing inflection point: serverless is most cost-effective for applications with low-to-medium traffic and variable workloads, while traditional architectures become more economical at high, steady traffic levels.
+
 ## 4. Operational Complexity
 
+### 4.1 Deployment and Maintenance
+
+**Traditional Architecture:**
+
+- Requires server provisioning, OS updates, and security patches
+- Needs configuration of networking, load balancing, and scaling policies
+- RabbitMQ requires installation, configuration, and maintenance
+- MySQL requires schema management, backups, and potential scaling
+
+**Serverless Architecture:**
+
+- No server management or OS maintenance
+- Infrastructure defined as code with minimal configuration
+- AWS handles security updates, scaling, and high availability
+- Focus on application code rather than infrastructure
+
+The serverless approach significantly reduces operational overhead, especially for teams without dedicated DevOps resources. The README demonstrates this difference clearly—the serverless deployment consists primarily of configuring managed services through the AWS console or CLI, while the traditional approach would require significantly more setup steps not fully detailed in the documentation.
 ## 5. Scalability Analysis
+
+### 5.1 Scaling Characteristics
+
+**Traditional Architecture:**
+
+- Requires manual configuration of auto-scaling groups
+- Scaling is less granular (entire EC2 instances)
+- Scaling takes minutes rather than seconds
+- Requires careful capacity planning
+- MySQL scaling involves read replicas or vertical scaling
+
+**Serverless Architecture:**
+
+- Automatic scaling from zero to thousands of concurrent requests
+- Pay only for actual compute resources used
+- Fine-grained resource allocation
+- No need to predict capacity requirements
+- DynamoDB scales automatically with on-demand capacity
+
+The serverless approach clearly offers superior scalability for applications with variable or unpredictable workloads. However, our cost analysis reveals that this flexibility comes at a premium for consistently high traffic levels.
 
 ## 6. Performance Considerations
 
