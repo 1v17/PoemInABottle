@@ -8,6 +8,9 @@ This report examines the architectural trade-offs between serverless and traditi
 Cloud-native application development presents organizations with multiple architectural approaches, each with distinct advantages and limitations. This report focuses on a practical comparison between traditional server-based architecture and serverless architecture within the AWS ecosystem.
 
 "Poem In A Bottle" is a collaborative poetry application where users contribute lines to community poems. This application represents a typical low-to-moderate data flow service with variable traffic patterns, making it an ideal candidate for comparing architectural approaches.
+
+We assume this application will expect 400,000 requests per day, where `POST` request and `GET` requests contribute half and half. The peak hour should be 5 hours in the evening and at night, when people get back home from work. Within the 5 hours the 2/3 of total requests (266,666) are sending to the server.
+
 The primary objectives of this report are to:
 
 - Evaluate the cost implications of each architectural approach
@@ -18,32 +21,86 @@ The primary objectives of this report are to:
 
 ## 2. Architectural Approaches
 
-We offer two distinct architecture implementations, while the peom aggregation strategy remains the same. The service will group lines by themes and limit a random number (from 3 to 14) of lines per poem.
+We offer two distinct architecture implementations, while the poem aggregation strategy remains the same. The service will group lines by themes and limit a random number (from 3 to 14) of lines per poem.
 
 The two implementations are:
 
 ### 2.1 EC2 + RabbitMQ + RDS MySQL (Traditional)
 
-   - **API Server**: Written in Go Gin, handles both GET and POST requests
-     - GET requests directly query the MySQL database
-     - POST requests are sent to RabbitMQ queue
+   - **API Server**: Written in Go Gin, handles both `GET` and `POST` requests
+     - `GET` requests directly query the MySQL database
+     - `POST` requests are sent to RabbitMQ queue
 
    - **Consumer**: Aggregates sentences into poems and writes them to MySQL database
    - **Database**: RDS MySQL stores the completed poems
    - **Deployment**: API, RabbitMQ, and consumer can all be hosted on the same EC2 instance for cost efficiency, or separated for scalability
 
+This architecture follows a more conventional pattern:
+
+- **API Server**: Go-based Gin server handling both `GET` and `POST` requests
+- **Message Queue**: RabbitMQ for asynchronous processing
+- **Consumer Process**: Long-running application aggregating sentences into poems
+- **Database**: RDS MySQL storing completed poems
+- **Deployment**: All components can run on a single EC2 instance
+
 ### 2.2 Lambda + SQS + DynamoDB (Serverless)
 
-   - **API Server**: Java-based API hosted on AWS Lambda, handles both GET and POST requests
+   - **API Handler**: Java-based AWS Lambda, handles both `GET` and `POST` requests
 
-      - GET requests directly query DynamoDB, aggregate sentences into poems, and delete used sentences
-      - POST requests send sentences to SQS queue
+      - `GET` requests directly query DynamoDB, aggregate sentences into poems, and delete used sentences
+      - `POST` requests send sentences to SQS queue
 
-   - **Consumer**: Processes messages from SQS and writes sentences to DynamoDB
-   - **Database**: DynamoDB stores individual sentences before they're used in poems
+   - **Consumer**: Java-based AWS Lambda, processes messages when triggered by SQS and writes sentences to DynamoDB
+   - **Database**: DynamoDB stores individual sentences by theme and timestamps before they're used in poems
 
+This architecture embraces a fully serverless approach:
+
+- **API Handler**: Java-based Lambda function handling HTTP endpoints
+- **Queue**: Amazon SQS for asynchronous message processing
+- **Consumer**: Lambda function triggered by SQS events
+- **Database**: DynamoDB storing sentences before aggregation
+- **Deployment**: All components are managed services with no server maintenance
 
 ## 3. Cost Analysis
+
+To understand the financial implications of each approach, we analyzed AWS cost estimates at three different traffic levels:
+
+| Daily Requests | Lambda+SQS+DynamoDB (Monthly) | 1 EC2+RabbitMQ+RDS (Monthly) | 3 EC2+RabbitMQ+RDS (Monthly) |
+| -------------- | ----------------------------- | ---------------------------- | ---------------------------- |
+| 30,000         | $2.79                         | $32.67                       | $39.97                       |
+| 300,000        | $27.70                        | $32.67                       | $39.97                       |
+| 400,000        | $39.84                        | $32.67                       | $39.97                       |
+
+
+|      |      |      |      |
+| ---- | ---- | ---- | ---- |
+|      |      |      |      |
+|      |      |      |      |
+|      |      |      |      |
+|      |      |      |      |
+|      |      |      |      |
+|      |      |      |      |
+|      |      |      |      |
+|      |      |      |      |
+|      |      |      |      |
+|      |      |      |      |
+|      |      |      |      |
+|      |      |      |      |
+|      |      |      |      |
+|      |      |      |      |
+|      |      |      |      |
+|      |      |      |      |
+|      |      |      |      |
+|      |      |      |      |
+|      |      |      |      |
+|      |      |      |      |
+|      |      |      |      |
+|      |      |      |      |
+|      |      |      |      |
+|      |      |      |      |
+
+
+> Note: The EC2-based solution would likely require scaling beyond a single t2.micro instance at higher traffic level.
 
 ## 4. Operational Complexity
 
@@ -58,22 +115,7 @@ The two implementations are:
 
 ### 7.2 Recommendations
 
-For "Poem In A Bottle", it's recommanded to implement the serverless architecture due to its cost advantages and alignment with low traffic patterns. This approach is particularly well-suited for this specific use case and will minimize expenses during periods of low activity.
+For "Poem In A Bottle", it's recommended to implement the serverless architecture due to its cost advantages and alignment with low traffic patterns. This approach is particularly well-suited for this specific use case and will minimize expenses during periods of low activity.
 
 For similar applications, serverless is the optimal choice for new projects with unpredictable or growing workloads, while traditional architecture remains better suited for applications requiring consistent performance or specialized runtime environments. Complex applications with mixed workload characteristics often benefit from hybrid approaches that leverage the strengths of both serverless and traditional infrastructures, allowing you to optimize for both cost efficiency and performance requirements.
-
-## 8. Future Considerations
-
-### 8.1 Enhance poem storage in Lambda implementation
-
-The current Lambda implementation has a significant limitation: poems are generated on-the-fly and not persisted, while the source sentences are deleted after use. This approach is problematic as it doesn't preserve the creative content users contribute to the system. Future versions should implement a comprehensive data persistence strategy where both individual sentences and completed poems are stored in DynamoDB. This enhancement would enable powerful features such as allowing users to view all poems containing their contributions, tracking poem popularity metrics, and implementing a more robust history of user interactions. The data model would need to be extended to maintain relationships between sentences, poems, and user contributions, potentially using GSIs (Global Secondary Indexes) to efficiently query these relationships without compromising performance.
-
-### 8.2 Monitor evolving pricing models for both architectural approaches
-
-Cloud service providers frequently update their pricing structures and introduce new cost optimization options. AWS and other vendors are continuously refining their serverless and traditional infrastructure pricing models in response to market demands and competition. We should establish a regular review process for cloud costs and keep abreast of new instance types, serverless pricing tiers, and reserved capacity options. Because what appears cost-effective today may not remain so in the future.
-
-### 8.3 Evaluate serverless offerings beyond AWS (Microsoft Azure, Google Cloud)
-
-While AWS pioneered many serverless concepts, Microsoft Azure and Google Cloud have developed competitive and sometimes more cost-effective serverless ecosystems. Azure Functions offers tight integration with the broader Microsoft ecosystem, while Google Cloud Functions provides excellent performance characteristics for certain workloads. Each platform offers unique advantages in terms of cold start performance, maximum execution duration, and integration capabilities. Conducting cross-platform comparisons specific to the application's requirements may reveal more suitable serverless environments beyond AWS.
-
 
