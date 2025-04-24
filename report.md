@@ -5,6 +5,7 @@
 This report examines the architectural trade-offs between serverless and traditional server-based deployments for low-data-flow applications in AWS. Using the "Poem In A Bottle" collaborative poetry application as a case study, we analyze **cost efficiency**, **operational overhead**, **scalability characteristics**, and **performance implications** of two distinct implementation approaches. The findings demonstrate that while serverless architectures offer compelling advantages for low-traffic applications with variable workloads, traditional server-based architectures remain competitive for stable, predictable workloads.
 
 ## 1. Introduction
+
 Cloud-native application development presents organizations with multiple architectural approaches, each with distinct advantages and limitations. This report focuses on a practical comparison between traditional server-based architecture and serverless architecture within the AWS ecosystem.
 
 "Poem In A Bottle" is a collaborative poetry application where users contribute lines to community poems. This application represents a typical low-to-moderate data flow service with variable traffic patterns, making it an ideal candidate for comparing architectural approaches.
@@ -27,38 +28,26 @@ The two implementations are:
 
 ### 2.1 EC2 + RabbitMQ + RDS MySQL (Traditional)
 
-   - **API Server**: Written in Go Gin, handles both `GET` and `POST` requests
-     - `GET` requests directly query the MySQL database
-     - `POST` requests are sent to RabbitMQ queue
-
-   - **Consumer**: Aggregates sentences into poems and writes them to MySQL database
-   - **Database**: RDS MySQL stores the completed poems
-   - **Deployment**: API, RabbitMQ, and consumer can all be hosted on the same EC2 instance for cost efficiency, or separated for scalability
-
 This architecture follows a more conventional pattern:
 
-- **API Server**: Go-based Gin server handling both `GET` and `POST` requests
+- **API Server**: Written in Go Gin, handles both `GET` and `POST` requests
+  - `GET` requests directly query the MySQL database
+  - `POST` requests are sent to RabbitMQ queue
 - **Message Queue**: RabbitMQ for asynchronous processing
-- **Consumer Process**: Long-running application aggregating sentences into poems
-- **Database**: RDS MySQL storing completed poems
-- **Deployment**: All components can run on a single EC2 instance
+- **Consumer**: Aggregates sentences into poems and writes them to MySQL database
+- **Database**: RDS MySQL stores the completed poems
+- **Deployment**: API, RabbitMQ, and consumer can all be hosted on the same EC2 instance for cost efficiency, or separated for scalability
 
 ### 2.2 Lambda + SQS + DynamoDB (Serverless)
 
-   - **API Handler**: Java-based AWS Lambda, handles both `GET` and `POST` requests
-
-      - `GET` requests directly query DynamoDB, aggregate sentences into poems, and delete used sentences
-      - `POST` requests send sentences to SQS queue
-
-   - **Consumer**: Java-based AWS Lambda, processes messages when triggered by SQS and writes sentences to DynamoDB
-   - **Database**: DynamoDB stores individual sentences by theme and timestamps before they're used in poems
-
 This architecture embraces a fully serverless approach:
 
-- **API Handler**: Java-based Lambda function handling HTTP endpoints
-- **Queue**: Amazon SQS for asynchronous message processing
-- **Consumer**: Lambda function triggered by SQS events
-- **Database**: DynamoDB storing sentences before aggregation
+- **API Handler**: Java-based AWS Lambda, handles both `GET` and `POST` requests
+  - `GET` requests directly query DynamoDB, aggregate sentences into poems, and delete used sentences
+  - `POST` requests send sentences to SQS queue
+- **Message Queue**: Amazon SQS for asynchronous message processing
+- **Consumer**: Java-based AWS Lambda, processes messages when triggered by SQS and writes sentences to DynamoDB
+- **Database**: DynamoDB stores individual sentences by theme and timestamps before they're used in poems
 - **Deployment**: All components are managed services with no server maintenance
 
 ## 3. Cost Analysis
@@ -66,38 +55,37 @@ This architecture embraces a fully serverless approach:
 To understand the financial implications of each approach, we analyzed AWS cost estimates at three different traffic levels:
 
 | Daily Requests | Lambda+SQS+DynamoDB (Monthly) | 1 EC2+RabbitMQ+RDS (Monthly) | 3 EC2+RabbitMQ+RDS (Monthly) |
-| -------------- | ----------------------------- | ---------------------------- | ---------------------------- |
-| 30,000         | $2.79                         | $32.67                       | $39.97                       |
-| 300,000        | $27.70                        | $32.67                       | $39.97                       |
-| 400,000        | $39.84                        | $32.67                       | $39.97                       |
-
+| -------------- | ----------------------------: | ---------------------------: | ---------------------------: |
+| 30,000         |                         $2.79 |                       $32.67 |                       $39.97 |
+| 300,000        |                        $27.70 |                       $32.67 |                       $39.97 |
+| 400,000        |                        $39.84 |                       $32.67 |                       $39.97 |
 
 | **N (Number of Requests)** | Items    | Sub-Item                 | Monthly Cost in USD |
-| -------------------------- | -------- | ------------------------ | ------------------- |
-|                            | Lambda   | Lambda w/ Functional URL | 1.04                |
-|                            |          | Lambda for SQS to DB     | 0.52                |
-|                            | SQS      |                          | 0.23                |
-|                            | DynamoDB | DB for Sentences         | 0.5                 |
-|                            |          | DB for Poems             | 0.5                 |
-| **30,000**                 | Sum      |                          | 2.79                |
-|                            | Lambda   | Lambda w/ Functional URL | 12.11               |
-|                            |          | Lambda for SQS to DB     | 5.29                |
-|                            | SQS      |                          | 2.28                |
-|                            | DynamoDB | DB for Sentences         | 4.01                |
-|                            |          | DB for Poems             | 4.01                |
-| **300,000**                | Sum      |                          | 27.7                |
-|                            | Lambda   | Lambda w/ Functional URL | 15.72               |
-|                            |          | Lambda for SQS to DB     | 6.85                |
-|                            | SQS      |                          | 5.93                |
-|                            | DynamoDB | DB for Sentences         | 5.19                |
-|                            |          | DB for Poems             | 5.19                |
-| **390,000**                | Sum      |                          | 38.88               |
-|                            | Lambda   | Lambda w/ Functional URL | 16.13               |
-|                            |          | Lambda for SQS to DB     | 7.01                |
-|                            | SQS      |                          | 6.08                |
-|                            | DynamoDB | DB for Sentences         | 5.31                |
-|                            |          | DB for Poems             | 5.31                |
-| **400,000**                | Sum      |                          | 39.84               |
+| -------------------------- | -------- | ------------------------ | ------------------: |
+|                            | Lambda   | Lambda w/ Functional URL |                1.04 |
+|                            |          | Lambda for SQS to DB     |                0.52 |
+|                            | SQS      |                          |                0.23 |
+|                            | DynamoDB | DB for Sentences         |                 0.5 |
+|                            |          | DB for Poems             |                 0.5 |
+| **30,000**                 | **Sum**  |                          |            **2.79** |
+|                            | Lambda   | Lambda w/ Functional URL |               12.11 |
+|                            |          | Lambda for SQS to DB     |                5.29 |
+|                            | SQS      |                          |                2.28 |
+|                            | DynamoDB | DB for Sentences         |                4.01 |
+|                            |          | DB for Poems             |                4.01 |
+| **300,000**                | **Sum**  |                          |            **27.7** |
+|                            | Lambda   | Lambda w/ Functional URL |               15.72 |
+|                            |          | Lambda for SQS to DB     |                6.85 |
+|                            | SQS      |                          |                5.93 |
+|                            | DynamoDB | DB for Sentences         |                5.19 |
+|                            |          | DB for Poems             |                5.19 |
+| **390,000**                | **Sum**  |                          |           **38.88** |
+|                            | Lambda   | Lambda w/ Functional URL |               16.13 |
+|                            |          | Lambda for SQS to DB     |                7.01 |
+|                            | SQS      |                          |                6.08 |
+|                            | DynamoDB | DB for Sentences         |                5.31 |
+|                            |          | DB for Poems             |                5.31 |
+| **400,000**                | **Sum**  |                          |           **39.84** |
 
 > Note: The EC2-based solution would likely require scaling beyond a single t2.micro instance at higher traffic level.
 
@@ -130,6 +118,7 @@ This demonstrates the classic serverless pricing inflection point: serverless is
 - Focus on application code rather than infrastructure
 
 The serverless approach significantly reduces operational overhead, especially for teams without dedicated DevOps resources. The README demonstrates this difference clearly—the serverless deployment consists primarily of configuring managed services through the AWS console or CLI, while the traditional approach would require significantly more setup steps not fully detailed in the documentation.
+
 ## 5. Scalability Analysis
 
 ### 5.1 Scaling Characteristics
@@ -154,14 +143,49 @@ The serverless approach clearly offers superior scalability for applications wit
 
 ## 6. Performance Considerations
 
+### 6.1 Load Testing Methodology
+
+We conducted comparative load testing using a custom client to simulate our expected daily load of 400,000 requests. We chose the this amount of requests because it has been identified as cost inflection point between serverless and traditional architectures. The test used 20 thread groups with 2-second intervals between each group to distribute load across the following deployment configurations:
+
+- **Traditional architecture (distributed)**: Publisher, Consumer, and RabbitMQ on separate EC2 instances
+- **Traditional architecture (consolidated)**: All services on a single EC2 instance
+- **Serverless architecture**: Lambda functions with SQS
+
+### 6.2 Traditional Architecture Performance
+
+The traditional architecture demonstrated robust performance under load:
+
+| Deployment Configuration | Throughput (req/sec) | P99 Latency (ms) | Success Rate |
+| ------------------------ | -------------------: | ---------------: | -----------: |
+| Three-server EC2         |               431.50 |            2,780 |         100% |
+| Single-server EC2        |               380.23 |            3,010 |         100% |
+
+The consolidated deployment shows expected performance degradation compared to the distributed setup, as resources are shared among all services. However, both configurations handled the full request volume successfully, presenting a clear trade-off between cost efficiency and performance.
+
+### 6.3 Serverless Architecture Performance
+The serverless architecture presented unique testing challenges. Our attempt to conduct equivalent load testing against the Lambda-based implementation was unsuccessful as AWS temporarily restricted our account. This restriction occurred because Lambda costs are calculated based on request volume within a short timeframe. Consequently, when our test compressed an entire day's worth of requests (400,000) into approximately 20 minutes, this concentrated load pattern exceeded the budget limits of our AWS learner lab account (50 dollars).
+
+While we couldn't obtain complete performance metrics for the serverless implementation under the full load, preliminary testing with individual requests showed that the Lambda architecture processed single requests efficiently.
+
+### 6.4 Performance Implications
+These results highlight important considerations for architecture selection:
+
+- **Burst capacity handling**: Traditional architectures provide predictable performance under consistent load but may struggle with unexpected traffic spikes without pre-provisioned capacity.
+
+- **Cost predictability vs. performance**: The consolidated traditional deployment offers a middle ground between cost and performance, with only a 12% throughput reduction compared to the distributed deployment.
+
+- **Testing challenges for serverless**: Serverless architectures require different testing approaches that account for their consumption-based pricing model and potential rate limiting.
+
+- **Scale considerations**: For applications with steady, predictable workloads, traditional architectures can be sized appropriately to provide consistent performance, while serverless architectures may be better suited for highly variable workloads.
+
+The performance testing reinforces our cost analysis findings—traditional architectures become more cost-effective at higher, consistent traffic levels, but serverless architectures offer flexibility for variable workloads without the need to pre-provision capacity.
+
 ## 7. Conclusions and Recommendations
 
 ### 7.1 Conclusions
-
 
 ### 7.2 Recommendations
 
 For "Poem In A Bottle", it's recommended to implement the serverless architecture due to its cost advantages and alignment with low traffic patterns. This approach is particularly well-suited for this specific use case and will minimize expenses during periods of low activity.
 
 For similar applications, serverless is the optimal choice for new projects with unpredictable or growing workloads, while traditional architecture remains better suited for applications requiring consistent performance or specialized runtime environments. Complex applications with mixed workload characteristics often benefit from hybrid approaches that leverage the strengths of both serverless and traditional infrastructures, allowing you to optimize for both cost efficiency and performance requirements.
-
