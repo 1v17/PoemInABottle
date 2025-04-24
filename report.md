@@ -182,10 +182,40 @@ The performance testing reinforces our cost analysis findings—traditional arch
 
 ## 7. Conclusions and Recommendations
 
-### 7.1 Conclusions
+### 7.1 Key Findings
+
+Our comparative analysis of serverless and traditional architectures for the "Poem In A Bottle" application yields several significant findings:
+
+1. **Cost-Traffic Relationship**: A clear inflection point exists at approximately 400,000 daily requests, where the serverless architecture ($39.84/month) becomes more expensive than the traditional architecture ($32.67/month). Below this threshold, serverless offers substantial cost savings—as much as 91.5% at low traffic volumes.
+
+2. **Operational Complexity**: The serverless implementation dramatically reduces operational overhead by eliminating server management, OS maintenance, and infrastructure scaling concerns. This benefit is particularly valuable for small teams without dedicated DevOps resources.
+
+3. **Scalability Trade-offs**: The serverless architecture provides superior elasticity with automatic scaling from zero to thousands of concurrent requests, while the traditional architecture requires manual configuration and careful capacity planning. However, this flexibility comes at a premium cost for consistently high traffic.
+
+4. **Performance Characteristics**: Traditional architecture delivers predictable performance under load (431.50 req/sec on distributed deployment; 380.23 req/sec on single-server deployment) with 100% success rates. The serverless implementation presents load testing challenges due to its consumption-based pricing model, highlighting the need for different testing approaches.
+
+5. **Infrastructure Consolidation Impact**: Consolidating all services onto a single EC2 instance resulted in only a 12% throughput reduction compared to the distributed deployment, presenting a viable cost-optimization strategy for the traditional architecture.
+
+6. **Workload Pattern Alignment**: Serverless architecture aligns optimally with variable, unpredictable workloads while traditional architecture better suits steady, predictable traffic patterns that can effectively utilize pre-provisioned capacity.
+
+These findings demonstrate that architectural choices should be driven by specific application characteristics, expected traffic patterns, operational resource availability, and cost sensitivity rather than following general industry trends.
 
 ### 7.2 Recommendations
 
 For "Poem In A Bottle", it's recommended to implement the serverless architecture due to its cost advantages and alignment with low traffic patterns. This approach is particularly well-suited for this specific use case and will minimize expenses during periods of low activity.
 
 For similar applications, serverless is the optimal choice for new projects with unpredictable or growing workloads, while traditional architecture remains better suited for applications requiring consistent performance or specialized runtime environments. Complex applications with mixed workload characteristics often benefit from hybrid approaches that leverage the strengths of both serverless and traditional infrastructures, allowing you to optimize for both cost efficiency and performance requirements.
+
+## 8. Future Considerations
+ 
+ ### 8.1 Enhance poem storage in Lambda implementation
+ 
+ The current Lambda implementation has a significant limitation: poems are generated on-the-fly and not persisted, while the source sentences are deleted after use. This approach is problematic as it doesn't preserve the creative content users contribute to the system. Future versions should implement a comprehensive data persistence strategy where both individual sentences and completed poems are stored in DynamoDB. This enhancement would enable powerful features such as allowing users to view all poems containing their contributions, tracking poem popularity metrics, and implementing a more robust history of user interactions. The data model would need to be extended to maintain relationships between sentences, poems, and user contributions, potentially using GSIs (Global Secondary Indexes) to efficiently query these relationships without compromising performance.
+ 
+ ### 8.2 Monitor evolving pricing models for both architectural approaches
+ 
+ Cloud service providers frequently update their pricing structures and introduce new cost optimization options. AWS and other vendors are continuously refining their serverless and traditional infrastructure pricing models in response to market demands and competition. We should establish a regular review process for cloud costs and keep abreast of new instance types, serverless pricing tiers, and reserved capacity options. Because what appears cost-effective today may not remain so in the future.
+ 
+ ### 8.3 Evaluate serverless offerings beyond AWS (Microsoft Azure, Google Cloud)
+ 
+ While AWS pioneered many serverless concepts, Microsoft Azure and Google Cloud have developed competitive and sometimes more cost-effective serverless ecosystems. Azure Functions offers tight integration with the broader Microsoft ecosystem, while Google Cloud Functions provides excellent performance characteristics for certain workloads. Each platform offers unique advantages in terms of cold start performance, maximum execution duration, and integration capabilities. Conducting cross-platform comparisons specific to the application's requirements may reveal more suitable serverless environments beyond AWS.
