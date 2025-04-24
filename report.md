@@ -163,11 +163,13 @@ The traditional architecture demonstrated robust performance under load:
 The consolidated deployment shows expected performance degradation compared to the distributed setup, as resources are shared among all services. However, both configurations handled the full request volume successfully, presenting a clear trade-off between cost efficiency and performance.
 
 ### 6.3 Serverless Architecture Performance
+
 The serverless architecture presented unique testing challenges. Our attempt to conduct equivalent load testing against the Lambda-based implementation was unsuccessful as AWS temporarily restricted our account. This restriction occurred because Lambda costs are calculated based on request volume within a short timeframe. Consequently, when our test compressed an entire day's worth of requests (400,000) into approximately 20 minutes, this concentrated load pattern exceeded the budget limits of our AWS learner lab account (50 dollars).
 
 While we couldn't obtain complete performance metrics for the serverless implementation under the full load, preliminary testing with individual requests showed that the Lambda architecture processed single requests efficiently.
 
 ### 6.4 Performance Implications
+
 These results highlight important considerations for architecture selection:
 
 - **Burst capacity handling**: Traditional architectures provide predictable performance under consistent load but may struggle with unexpected traffic spikes without pre-provisioned capacity.
@@ -207,15 +209,15 @@ For "Poem In A Bottle", it's recommended to implement the serverless architectur
 For similar applications, serverless is the optimal choice for new projects with unpredictable or growing workloads, while traditional architecture remains better suited for applications requiring consistent performance or specialized runtime environments. Complex applications with mixed workload characteristics often benefit from hybrid approaches that leverage the strengths of both serverless and traditional infrastructures, allowing you to optimize for both cost efficiency and performance requirements.
 
 ## 8. Future Considerations
- 
- ### 8.1 Enhance poem storage in Lambda implementation
- 
- The current Lambda implementation has a significant limitation: poems are generated on-the-fly and not persisted, while the source sentences are deleted after use. This approach is problematic as it doesn't preserve the creative content users contribute to the system. Future versions should implement a comprehensive data persistence strategy where both individual sentences and completed poems are stored in DynamoDB. This enhancement would enable powerful features such as allowing users to view all poems containing their contributions, tracking poem popularity metrics, and implementing a more robust history of user interactions. The data model would need to be extended to maintain relationships between sentences, poems, and user contributions, potentially using GSIs (Global Secondary Indexes) to efficiently query these relationships without compromising performance.
- 
- ### 8.2 Monitor evolving pricing models for both architectural approaches
- 
- Cloud service providers frequently update their pricing structures and introduce new cost optimization options. AWS and other vendors are continuously refining their serverless and traditional infrastructure pricing models in response to market demands and competition. We should establish a regular review process for cloud costs and keep abreast of new instance types, serverless pricing tiers, and reserved capacity options. Because what appears cost-effective today may not remain so in the future.
- 
- ### 8.3 Evaluate serverless offerings beyond AWS (Microsoft Azure, Google Cloud)
- 
- While AWS pioneered many serverless concepts, Microsoft Azure and Google Cloud have developed competitive and sometimes more cost-effective serverless ecosystems. Azure Functions offers tight integration with the broader Microsoft ecosystem, while Google Cloud Functions provides excellent performance characteristics for certain workloads. Each platform offers unique advantages in terms of cold start performance, maximum execution duration, and integration capabilities. Conducting cross-platform comparisons specific to the application's requirements may reveal more suitable serverless environments beyond AWS.
+
+### 8.1 Enhance poem storage in Lambda implementation
+
+The current Lambda implementation has a significant limitation: poems are generated on-the-fly and not persisted, while the source sentences are deleted after use. This approach is problematic as it doesn't preserve the creative content users contribute to the system. Future versions should implement a comprehensive data persistence strategy where both individual sentences and completed poems are stored in DynamoDB. This enhancement would enable powerful features such as allowing users to view all poems containing their contributions, tracking poem popularity metrics, and implementing a more robust history of user interactions. The data model would need to be extended to maintain relationships between sentences, poems, and user contributions, potentially using GSIs (Global Secondary Indexes) to efficiently query these relationships without compromising performance.
+
+### 8.2 Monitor evolving pricing models for both architectural approaches
+
+Cloud service providers frequently update their pricing structures and introduce new cost optimization options. AWS and other vendors are continuously refining their serverless and traditional infrastructure pricing models in response to market demands and competition. We should establish a regular review process for cloud costs and keep abreast of new instance types, serverless pricing tiers, and reserved capacity options. Because what appears cost-effective today may not remain so in the future.
+
+### 8.3 Evaluate serverless offerings beyond AWS (Microsoft Azure, Google Cloud)
+
+While AWS pioneered many serverless concepts, Microsoft Azure and Google Cloud have developed competitive and sometimes more cost-effective serverless ecosystems. Azure Functions offers tight integration with the broader Microsoft ecosystem, while Google Cloud Functions provides excellent performance characteristics for certain workloads. Each platform offers unique advantages in terms of cold start performance, maximum execution duration, and integration capabilities. Conducting cross-platform comparisons specific to the application's requirements may reveal more suitable serverless environments beyond AWS.
